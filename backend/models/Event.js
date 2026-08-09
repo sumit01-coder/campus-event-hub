@@ -55,6 +55,10 @@ const eventSchema = new mongoose.Schema({
     maxGroupSize: {
         type: Number,
         default: 1
+    },
+    registeredCount: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 

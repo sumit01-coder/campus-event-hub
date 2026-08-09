@@ -5,10 +5,10 @@ import { Briefcase, MapPin, ArrowRight, Zap, Coffee, Globe2, Heart } from 'lucid
 
 export default function Careers() {
   const jobs = [
-    { title: "Senior React Engineer", department: "Engineering", location: "Remote", type: "Full-time" },
-    { title: "Product Designer", department: "Design", location: "San Francisco, CA", type: "Full-time" },
-    { title: "Campus Ambassador", department: "Marketing", location: "Various Campuses", type: "Part-time" },
-    { title: "Customer Success Manager", department: "Support", location: "Remote", type: "Full-time" }
+    { title: "Senior React Engineer", department: "Engineering", location: "India & Remote", type: "Full-time" },
+    { title: "Product Designer", department: "Design", location: "India & Remote", type: "Full-time" },
+    { title: "Campus Ambassador", department: "Marketing", location: "India & Remote", type: "Part-time" },
+    { title: "Customer Success Manager", department: "Support", location: "India & Remote", type: "Full-time" }
   ];
 
   const perks = [

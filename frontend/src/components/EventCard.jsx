@@ -70,7 +70,7 @@ export default function EventCard({ event, onViewPass }) {
           </button>
         )}
         <div className="absolute bottom-2 right-2 bg-white/80 backdrop-blur-md border border-white/60 px-2.5 py-1 rounded-full text-[11px] font-extrabold text-gray-900 z-10 flex items-center gap-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.05)]">
-          <Users size={12} className="text-[#2563EB]" /> {event.registered || 0}+
+          <Users size={12} className="text-[#2563EB]" /> {event.registeredCount || 0}+
         </div>
       </div>
     </div>

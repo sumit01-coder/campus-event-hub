@@ -56,6 +56,8 @@ const registerForEvent = async (req, res) => {
             paymentStatus: paymentStatus
         });
 
+        await Event.findByIdAndUpdate(eventId, { $inc: { registeredCount: 1 } });
+
         // Optionally, increment event.registered count here (if we add that to the schema)
         
         // Notify user
@@ -166,6 +168,7 @@ const cancelRegistration = async (req, res) => {
 
         // Otherwise, allow direct cancellation (individual or team leader)
         await Registration.findByIdAndDelete(registration._id);
+        await Event.findByIdAndUpdate(registration.eventId, { $inc: { registeredCount: -1 } });
 
         res.json({ message: 'Successfully canceled registration', status: 'cancelled' });
     } catch (error) {
@@ -224,6 +227,8 @@ const joinWithTeamCode = async (req, res) => {
             status: 'registered',
             paymentStatus: leaderRegistration.paymentStatus
         });
+
+        await Event.findByIdAndUpdate(eventId, { $inc: { registeredCount: 1 } });
 
         res.status(201).json({ message: 'Successfully joined the team!', registration: joinRegistration, event });
 
@@ -326,7 +331,10 @@ const approveCancellation = async (req, res) => {
 
         if (!leaderReg) return res.status(401).json({ message: 'Not authorized. Only the team leader can approve this.' });
 
+        const eventId = memberReg.eventId;
         await Registration.findByIdAndDelete(memberReg._id);
+        await Event.findByIdAndUpdate(eventId, { $inc: { registeredCount: -1 } });
+        
         res.json({ message: 'Cancellation approved. Member removed.' });
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
