@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-background: #F4F4F5; /* Slightly darker to make white cards pop */
+  --color-card: #FFFFFF;
+  --color-textPrimary: #09090B; /* Darker, crisper text */
+  --color-textSecondary: #71717A;
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-accent: #F97316;
+  --color-accent-hover: #EA580C;
+  --color-surface: #E4E4E7;
+  
+  --font-sans: "Inter", sans-serif;
+
+  --shadow-saas: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  --shadow-saas-hover: 0 10px 30px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-textPrimary font-sans antialiased selection:bg-primary selection:text-white;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-textPrimary tracking-tight;
+  }
+  p {
+    @apply text-textSecondary;
+  }
+}
+
+@layer components {
+  /* Premium SaaS Card */
+  .saas-card {
+    @apply bg-card rounded-2xl shadow-saas border border-gray-100 transition-all duration-300;
+  }
+  .saas-card-hover {
+    @apply hover:shadow-saas-hover hover:-translate-y-1;
+  }
+  
+  /* Modern Form Input */
+  .saas-input {
+    @apply w-full bg-surface border border-gray-200 rounded-xl py-3 px-4 text-textPrimary placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-200;
+  }
+
+  /* Modern Button */
+  .btn-primary {
+    @apply px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-medium transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none;
+  }
+
+  /* Secondary Button */
+  .btn-secondary {
+    @apply px-6 py-2.5 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-textPrimary rounded-xl font-medium transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none;
+  }
+
+  /* Premium SaaS Grid Background */
+  .bg-grid-pattern {
+    background-image: radial-gradient(#E5E7EB 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Glassmorphism Panel */
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-md border border-white/40 shadow-sm;
+  }
+
+  /* Vibrant Gradient Text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+  
+  .animate-stagger-1 { animation-delay: 100ms; }
+  .animate-stagger-2 { animation-delay: 200ms; }
+  .animate-stagger-3 { animation-delay: 300ms; }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
