@@ -137,7 +137,7 @@ export default function IdentityVerificationModal({ isOpen, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-100">
           <h2 className="text-xl font-extrabold text-gray-900">Identity Verification</h2>
-          <button onClick={handleClose} className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-colors">
+          <button onClick={handleClose} className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-colors">
             <X size={20} />
           </button>
         </div>

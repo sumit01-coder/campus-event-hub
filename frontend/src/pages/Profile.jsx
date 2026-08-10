@@ -1,41 +1,67 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
-import { User, Mail, Phone, BookOpen, Building, GraduationCap, BadgeCheck, Shield, Calendar, Edit3, CheckCircle, RefreshCw, Download, Maximize2, Sun, Smile, FileText, UserCheck, Smartphone } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, Building, GraduationCap, BadgeCheck, Shield, Calendar, Edit3, CheckCircle, RefreshCw, Download, Maximize2, Sun, Smile, FileText, UserCheck, Smartphone, Clock, AlertCircle } from 'lucide-react';
 import EditProfileModal from '../components/EditProfileModal';
 import IdentityVerificationModal from '../components/IdentityVerificationModal';
+import RequestOrganizerModal from '../components/RequestOrganizerModal';
+import OtpVerificationModal from '../components/OtpVerificationModal';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { SidebarContext } from '../context/SidebarContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Profile() {
   const { user, sendVerificationEmail, verifyEmail } = useContext(AuthContext);
   const { isOpen } = useContext(SidebarContext);
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
+  const [isOrganizerModalOpen, setIsOrganizerModalOpen] = useState(false);
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get('edit') === 'true') {
+      setIsEditModalOpen(true);
+    }
+  }, [location]);
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get('edit') === 'true') {
+      queryParams.delete('edit');
+      navigate({
+        pathname: location.pathname,
+        search: queryParams.toString()
+      }, { replace: true });
+    }
+  };
 
   const handleVerify = async () => {
     setIsSendingVerification(true);
     try {
-      const response = await sendVerificationEmail();
-      const token = prompt(`Verification email sent!\n(SIMULATION) Your code is: ${response.token}\n\nEnter code below to verify:`);
-      
-      if (token) {
-        await verifyEmail(token);
-        alert('Email verified successfully!');
-      }
+      await sendVerificationEmail();
+      setIsOtpModalOpen(true);
     } catch (error) {
-      alert('Failed to verify email. Please try again.');
+      toast.error(error.response?.data?.message || 'Failed to send verification email. Please try again.');
     } finally {
       setIsSendingVerification(false);
     }
   };
 
+  const handleVerifyOtp = async (otp) => {
+    await verifyEmail(otp);
+    toast.success('Email verified successfully!');
+  };
+
   if (!user) {
     return (
-      <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+      <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
         <Navbar />
         <Sidebar />
         <main className="flex-1 p-8 flex items-center justify-center">
@@ -46,10 +72,10 @@ export default function Profile() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
       <Navbar />
       <Sidebar />
-      <main className="flex-1 p-8 overflow-y-auto animate-fade-in-up">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-fade-in-up">
         
         {/* Email Verification Banner */}
         {user && !user.isEmailVerified && (
@@ -94,6 +120,63 @@ export default function Profile() {
           </div>
         )}
 
+        {/* Organizer Application Banner */}
+        {user && (!user.organizerProfile || user.organizerProfile.verificationStatus === 'none') && (
+          <div className="mb-6 bg-purple-50 border border-purple-200 rounded-[20px] p-4 flex flex-col md:flex-row items-start md:items-center justify-between shadow-sm gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 text-purple-600 rounded-full">
+                <Building size={20} />
+              </div>
+              <div>
+                <h3 className="text-purple-800 font-bold text-sm">Become an Event Organizer</h3>
+                <p className="text-purple-700 text-xs">Apply for an organizer account to host events on behalf of your institute or club.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsOrganizerModalOpen(true)}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-bold transition-all shadow-sm whitespace-nowrap"
+            >
+              Request Access
+            </button>
+          </div>
+        )}
+
+        {/* Organizer Pending Banner */}
+        {user && user.organizerProfile?.verificationStatus === 'pending' && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-[20px] p-4 flex flex-col md:flex-row items-start md:items-center justify-between shadow-sm gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-100 text-yellow-600 rounded-full">
+                <Clock size={20} />
+              </div>
+              <div>
+                <h3 className="text-yellow-800 font-bold text-sm">Organizer Application Pending</h3>
+                <p className="text-yellow-700 text-xs">Your request is currently being verified by the administration team. You will be notified once approved.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Organizer Rejected Banner */}
+        {user && user.organizerProfile?.verificationStatus === 'rejected' && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-[20px] p-4 flex flex-col md:flex-row items-start md:items-center justify-between shadow-sm gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 text-red-600 rounded-full">
+                <AlertCircle size={20} />
+              </div>
+              <div>
+                <h3 className="text-red-800 font-bold text-sm">Organizer Application Rejected</h3>
+                <p className="text-red-700 text-xs">Your request was not approved by the admin. You can update your details and request again.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsOrganizerModalOpen(true)}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-all shadow-sm whitespace-nowrap"
+            >
+              Re-apply
+            </button>
+          </div>
+        )}
+
         {/* Profile Header Card */}
         <div className="bg-white rounded-[32px] p-8 md:p-12 mb-8 shadow-sm border border-gray-100 relative overflow-hidden flex flex-col md:flex-row items-center gap-8">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full blur-3xl opacity-60 pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
@@ -110,7 +193,7 @@ export default function Profile() {
             </div>
             <button 
               onClick={() => setIsEditModalOpen(true)}
-              className="absolute bottom-0 right-0 p-2.5 bg-white rounded-full shadow-md border border-gray-100 text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+              className="absolute bottom-0 right-0 p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center bg-white rounded-full shadow-md border border-gray-100 text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors"
             >
               <Edit3 size={16} />
             </button>
@@ -137,9 +220,19 @@ export default function Profile() {
                   )}
                 </>
               )}
+              {user.capabilities?.volunteer && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-100">
+                  <Shield size={14} /> Volunteer
+                </span>
+              )}
               {user.identityVerification?.status === 'verified' && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
                   <BadgeCheck size={14} /> ID Verified
+                </span>
+              )}
+              {user.isEmailVerified && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-bold border border-teal-100">
+                  <BadgeCheck size={14} /> Email Verified
                 </span>
               )}
             </div>
@@ -472,10 +565,16 @@ export default function Profile() {
       </main>
 
       {/* Edit Profile Modal */}
-      <EditProfileModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} />
+      <EditProfileModal isOpen={isEditModalOpen} onClose={handleCloseEditModal} />
+
+      {/* OTP Verification Modal */}
+      <OtpVerificationModal isOpen={isOtpModalOpen} onClose={() => setIsOtpModalOpen(false)} onVerify={handleVerifyOtp} email={user.email} />
 
       {/* Identity Verification Modal */}
       <IdentityVerificationModal isOpen={isIdentityModalOpen} onClose={() => setIsIdentityModalOpen(false)} />
+
+      {/* Request Organizer Modal */}
+      <RequestOrganizerModal isOpen={isOrganizerModalOpen} onClose={() => setIsOrganizerModalOpen(false)} />
     </div>
   );
 }

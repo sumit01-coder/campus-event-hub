@@ -15,5 +15,7 @@ router.get('/stats', protectAdmin, getDashboardStats);
 router.get('/users', protectAdmin, getUsers);
 router.get('/organizers', protectAdmin, getOrganizers);
 router.put('/organizers/:id/verify', protectAdmin, updateOrganizerStatus);
+const { getLogs } = require('../controllers/logController');
+router.get('/logs', protectAdmin, getLogs);
 
 module.exports = router;

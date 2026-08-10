@@ -9,7 +9,8 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        match: [/^\S+@\S+\.\S+$/, 'Please use a valid email address']
     },
     phone: {
         type: String,
@@ -27,6 +28,9 @@ const userSchema = new mongoose.Schema({
     },
     emailVerificationToken: {
         type: String
+    },
+    emailVerificationExpires: {
+        type: Date
     },
     
     // Identity Verification (Live Photo & ID Card)
@@ -52,7 +56,8 @@ const userSchema = new mongoose.Schema({
     // Capabilities (replaces legacy static roles)
     capabilities: {
         participant: { type: Boolean, default: true },
-        organizer: { type: Boolean, default: false }
+        organizer: { type: Boolean, default: false },
+        volunteer: { type: Boolean, default: false }
     },
 
     // Basic Profile

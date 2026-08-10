@@ -53,7 +53,7 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
           <button 
             onClick={onClose}
             disabled={isRegistering}
-            className="absolute top-6 right-6 text-white/80 hover:text-white transition-colors"
+            className="absolute top-4 right-4 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
           >
             <X size={24} />
           </button>

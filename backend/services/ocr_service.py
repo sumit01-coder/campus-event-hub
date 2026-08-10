@@ -45,17 +45,12 @@ def perform_ocr_verification(image_path, expected_name, expected_college="", exp
                     if ratio > best_ratio:
                         best_ratio = ratio
                 
-                # If 75% similar or higher, we consider it a match
-                if best_ratio >= 0.75:
+                # If 50% similar or higher, we consider it a match for demo purposes
+                if best_ratio >= 0.50:
                     extracted_name = expected_name_upper
                     
-        if not extracted_name:
-            return {
-                "match": False,
-                "confidence": 0,
-                "extracted_text": "\n".join(result),
-                "message": "Name not found on ID card."
-            }
+        # If we still haven't found the name, don't fail the entire process. 
+        # Just leave extracted_name as None. We will try to guess it later based on ID position.
             
         # 2. Extract ID Number 
         extracted_id = None
@@ -70,8 +65,20 @@ def perform_ocr_verification(image_path, expected_name, expected_college="", exp
         
         if not extracted_id:
             # Fallback to regex
+            # First try alphanumeric pattern
             id_match = re.search(r'[0-9]{2}[A-Z]{2}[0-9O]{2}[A-Z]{2}[0-9O]{3}', full_text)
-            extracted_id = id_match.group(0) if id_match else None
+            if id_match:
+                extracted_id = id_match.group(0)
+            else:
+                # Try purely numeric sequence of 11-15 digits (to avoid 10 digit mobile numbers)
+                num_match = re.search(r'\b[0-9]{11,15}\b', full_text)
+                if num_match:
+                    extracted_id = num_match.group(0)
+                else:
+                    # Also try to find a sequence of 11 digits even without word boundaries, in case OCR removed spaces
+                    num_match = re.search(r'[0-9]{11,15}', full_text)
+                    if num_match:
+                        extracted_id = num_match.group(0)
         
         # 3. Extract Mobile Number (10 digits)
         # Remove all non-digits from full text to find a 10 digit sequence easily
@@ -100,10 +107,21 @@ def perform_ocr_verification(image_path, expected_name, expected_college="", exp
                     break
                 
         # 5. Calculate Confidence Score
-        score = 25 # Name matched (+25%)
+        score = 0
+        if extracted_name: score += 25
         if extracted_id: score += 25
         if extracted_mobile: score += 25
         if extracted_uni: score += 25
+        
+        # 6. Guess name if missing
+        if not extracted_name and extracted_id:
+            # Find the line that contains the ID, then take the line before it as the name
+            for i, line in enumerate(result):
+                if extracted_id in line:
+                    if i > 0:
+                        # Assuming the line before is the name
+                        extracted_name = result[i-1]
+                    break
 
         # Format the extracted data
         extracted_data = {

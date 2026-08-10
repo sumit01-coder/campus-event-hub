@@ -43,6 +43,12 @@ const eventSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    coordinators: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        name: { type: String, required: true },
+        email: { type: String, required: true },
+        role: { type: String, default: 'volunteer' }
+    }],
     registrationDeadline: {
         type: Date,
         required: false
@@ -59,7 +65,26 @@ const eventSchema = new mongoose.Schema({
     registeredCount: {
         type: Number,
         default: 0
-    }
+    },
+    announcements: [{
+        message: { type: String, required: true },
+        date: { type: Date, default: Date.now }
+    }],
+    ratings: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        rating: { type: Number, required: true, min: 1, max: 5 },
+        review: { type: String },
+        date: { type: Date, default: Date.now }
+    }],
+    isHackathon: {
+        type: Boolean,
+        default: false
+    },
+    problemStatements: [{
+        title: { type: String, required: true },
+        description: { type: String, required: true },
+        maxTeams: { type: Number, default: 0 } // 0 = unlimited
+    }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Event', eventSchema);

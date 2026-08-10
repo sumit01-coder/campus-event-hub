@@ -9,11 +9,44 @@ import {
   Smartphone, Mail, Lock, Key, Trash2, 
   CreditCard, FileText, CheckCircle, ExternalLink, Download
 } from 'lucide-react';
+import api from '../services/api';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const { isOpen } = useContext(SidebarContext);
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('account');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast.error('Please enter your password to confirm');
+      return;
+    }
+    
+    try {
+      await api.delete('/users/profile', {
+        data: { password: deletePassword }
+      });
+      toast.success('Account completely deleted');
+      logout();
+      navigate('/login');
+    } catch (error) {
+      let errorMessage = 'Failed to delete account';
+      if (!error.response) {
+        errorMessage = 'Network error. Please make sure the backend server is running.';
+      } else if (error.response.status === 404 && typeof error.response.data === 'string' && error.response.data.includes('Cannot DELETE')) {
+        errorMessage = 'Route not found. Please restart your backend server to load the new delete feature.';
+      } else if (error.response.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      toast.error(errorMessage);
+    }
+  };
+
   const [eventNotifications, setEventNotifications] = useState({
     registration: { email: true, push: true },
     reminder: { email: true, push: true },
@@ -42,7 +75,7 @@ export default function Settings() {
   ];
 
   return (
-    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
       <Navbar />
       <Sidebar />
       <main className="flex-1 w-full p-6 lg:p-8 overflow-y-auto animate-fade-in-up">
@@ -337,9 +370,29 @@ export default function Settings() {
                         <h4 className="text-sm font-bold text-red-900">Delete Account Permanently</h4>
                         <p className="text-xs text-red-700/70 mt-1">This action cannot be undone. All data will be lost.</p>
                       </div>
-                      <button className="px-5 py-2 bg-red-600 text-white hover:bg-red-700 font-bold text-xs rounded-xl transition-colors whitespace-nowrap flex items-center gap-2">
-                        <Trash2 size={14} /> Delete Account
-                      </button>
+                      {!isDeletingAccount ? (
+                        <button onClick={() => setIsDeletingAccount(true)} className="px-5 py-2 bg-red-600 text-white hover:bg-red-700 font-bold text-xs rounded-xl transition-colors whitespace-nowrap flex items-center gap-2">
+                          <Trash2 size={14} /> Delete Account
+                        </button>
+                      ) : (
+                        <div className="w-full sm:w-auto flex flex-col gap-2">
+                          <input 
+                            type="password" 
+                            placeholder="Enter password to confirm" 
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            className="px-3 py-2 border border-red-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-red-500 bg-white w-full sm:w-48"
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <button onClick={() => { setIsDeletingAccount(false); setDeletePassword(''); }} className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold text-xs rounded-lg transition-colors">
+                              Cancel
+                            </button>
+                            <button onClick={handleDeleteAccount} className="px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 font-bold text-xs rounded-lg transition-colors">
+                              Confirm
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

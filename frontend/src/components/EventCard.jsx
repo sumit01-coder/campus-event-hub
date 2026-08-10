@@ -22,7 +22,7 @@ export default function EventCard({ event, onViewPass }) {
   return (
     <div 
       onClick={() => navigate(`/event/${event._id}`)}
-      className="bg-white rounded-[28px] p-5 flex justify-between gap-5 border border-white shadow-[0_8px_32px_rgba(0,0,0,0.03)] cursor-pointer hover:shadow-[0_12px_48px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1 group"
+      className="bg-white rounded-[28px] p-5 flex flex-col-reverse sm:flex-row justify-between gap-5 border border-white shadow-[0_8px_32px_rgba(0,0,0,0.03)] cursor-pointer hover:shadow-[0_12px_48px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1 group"
     >
       <div className="flex flex-col justify-between flex-1">
         <div>
@@ -43,7 +43,7 @@ export default function EventCard({ event, onViewPass }) {
         </div>
       </div>
       
-      <div className="w-32 h-32 rounded-[20px] bg-gray-100 relative overflow-hidden flex-shrink-0 shadow-inner">
+      <div className="w-full h-48 sm:w-32 sm:h-32 rounded-[20px] bg-gray-100 relative overflow-hidden flex-shrink-0 shadow-inner">
         {event.image ? (
           <img 
             src={event.image?.startsWith('/') ? `http://localhost:5000${event.image}` : event.image} 

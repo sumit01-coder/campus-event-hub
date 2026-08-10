@@ -6,7 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import { SidebarContext } from '../context/SidebarContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { ArrowLeft, MessageSquare, CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, CheckCircle2, Clock, Loader2, Megaphone, X } from 'lucide-react';
 import { io } from 'socket.io-client';
 
 export default function EventQueries() {
@@ -20,6 +20,9 @@ export default function EventQueries() {
   const [isLoading, setIsLoading] = useState(true);
   const [socket, setSocket] = useState(null);
   const [replyTexts, setReplyTexts] = useState({});
+  const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+  const [broadcastMessageText, setBroadcastMessageText] = useState('');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,9 +71,33 @@ export default function EventQueries() {
     });
   };
 
+  const handleBroadcast = async (e) => {
+    e.preventDefault();
+    if (!broadcastMessageText.trim()) return;
+    
+    setIsBroadcasting(true);
+    try {
+      const res = await api.post(`/events/${id}/broadcast`, { message: broadcastMessageText });
+      toast.success(res.data.message || 'Broadcast sent successfully!');
+      
+      // Update local state to immediately show the new announcement
+      setEvent(prev => ({
+        ...prev,
+        announcements: [...(prev.announcements || []), { message: broadcastMessageText, date: new Date().toISOString() }]
+      }));
+      
+      setIsBroadcastModalOpen(false);
+      setBroadcastMessageText('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send broadcast');
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+      <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
         <Navbar />
         <Sidebar />
         <div className="flex-1 flex items-center justify-center">
@@ -83,7 +110,7 @@ export default function EventQueries() {
   const unresolvedCount = queries.filter(q => !q.isResolved).length;
 
   return (
-    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
       <Navbar />
       <Sidebar />
       
@@ -110,7 +137,14 @@ export default function EventQueries() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-4">
+              <div className="flex gap-4 items-center">
+                <button 
+                  onClick={() => setIsBroadcastModalOpen(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-2xl font-bold shadow-md hover:shadow-lg transition-all text-sm h-full"
+                >
+                  <Megaphone size={18} />
+                  Broadcast
+                </button>
                 <div className="bg-gray-50 px-4 py-3 rounded-2xl border border-gray-100 text-center">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total</p>
                   <p className="text-2xl font-black text-gray-900">{queries.length}</p>
@@ -121,6 +155,33 @@ export default function EventQueries() {
                 </div>
               </div>
             </div>
+
+            {/* Broadcast History Section */}
+            {event?.announcements && event.announcements.length > 0 && (
+              <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm mb-8">
+                <div className="flex items-center gap-2 mb-6">
+                  <Megaphone size={20} className="text-indigo-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Broadcast History</h2>
+                </div>
+                <div className="space-y-4">
+                  {event.announcements.map((announcement, index) => (
+                    <div key={index} className="bg-indigo-50/50 rounded-xl p-5 border border-indigo-100 flex gap-4">
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
+                        <Megaphone size={16} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1 text-xs text-gray-500 font-medium">
+                          <span className="font-bold text-indigo-700 uppercase tracking-wider">Announcement</span>
+                          <span>•</span>
+                          <Clock size={12} /> {new Date(announcement.date).toLocaleString()}
+                        </div>
+                        <p className="text-gray-800 text-sm">{announcement.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-4">
               {queries.length === 0 ? (
@@ -219,6 +280,64 @@ export default function EventQueries() {
           </div>
         </main>
       </div>
+
+      {/* Broadcast Modal */}
+      {isBroadcastModalOpen && (
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-fade-in-up border border-gray-100">
+            <div className="flex justify-between items-center p-6 border-b border-gray-50 bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                  <Megaphone size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Broadcast Message</h3>
+                  <p className="text-xs text-gray-500 font-medium">Send an announcement to all registered attendees.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsBroadcastModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-xl transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleBroadcast} className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Message Content</label>
+                <textarea 
+                  value={broadcastMessageText}
+                  onChange={(e) => setBroadcastMessageText(e.target.value)}
+                  placeholder="Type your announcement here..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all resize-none min-h-[120px]"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button 
+                  type="button"
+                  onClick={() => setIsBroadcastModalOpen(false)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isBroadcasting || !broadcastMessageText.trim()}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-70 shadow-md shadow-indigo-200"
+                >
+                  {isBroadcasting ? (
+                    <><Loader2 size={18} className="animate-spin" /> Sending...</>
+                  ) : (
+                    <><Megaphone size={18} /> Send Broadcast</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,13 +10,12 @@ export default function EditProfileModal({ isOpen, onClose }) {
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
+    email: user?.email || '',
     phone: user?.phone || '',
     college: user?.profile?.college || '',
     department: user?.profile?.department || '',
     year: user?.profile?.year || '',
-    studentId: user?.profile?.studentId || '',
-    organizationType: user?.organizerProfile?.organizationType || '',
-    organizationName: user?.organizerProfile?.organizationName || ''
+    studentId: user?.profile?.studentId || ''
   });
 
   const handleChange = (e) => {
@@ -48,7 +47,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
         
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -63,6 +62,11 @@ export default function EditProfileModal({ isOpen, onClose }) {
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Full Name</label>
                   <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Email Address</label>
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
                 </div>
                 
                 <div className="space-y-1.5">
@@ -106,35 +110,6 @@ export default function EditProfileModal({ isOpen, onClose }) {
                 </div>
               </div>
             </div>
-
-            <div className="h-px bg-gray-100"></div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Organizer Application</h3>
-                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-semibold">Optional</span>
-              </div>
-              <p className="text-xs text-gray-500 leading-relaxed mb-4">Want to host events? Apply for an organizer account. If you are representing a college or a faculty member, select the appropriate type.</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Host Type</label>
-                  <select name="organizationType" value={formData.organizationType} onChange={handleChange} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
-                    <option value="">Select Type</option>
-                    <option value="Institute">Institute / College</option>
-                    <option value="Faculty">Faculty Member</option>
-                    <option value="Student Club">Student Club</option>
-                    <option value="Normal User">Independent Student</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Organization / Club Name</label>
-                  <input type="text" name="organizationName" value={formData.organizationName} onChange={handleChange} placeholder="e.g. GDSC PPSU" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-                </div>
-              </div>
-            </div>
-
           </form>
         </div>
 

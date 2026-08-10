@@ -59,6 +59,19 @@ const registrationSchema = new mongoose.Schema({
     cancellationRequested: {
         type: Boolean,
         default: false
+    },
+    // Hackathon Specific Fields
+    preferences: [{
+        type: mongoose.Schema.Types.ObjectId // References a problem statement _id within the Event
+    }],
+    assignedProblemId: {
+        type: mongoose.Schema.Types.ObjectId
+    },
+    projectSubmission: {
+        githubLink: { type: String },
+        liveDemoLink: { type: String },
+        presentationLink: { type: String },
+        submittedAt: { type: Date }
     }
 }, { timestamps: true });
 

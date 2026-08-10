@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const emailValidator = require('deep-email-validator');
 
 // Generate JWT
 const generateToken = (id, capabilities) => {
@@ -18,6 +19,23 @@ const registerUser = async (req, res) => {
 
         if (!name || !email || !phone || !password) {
             return res.status(400).json({ message: 'Please add all required fields' });
+        }
+        
+        const { valid, reason } = await emailValidator.validate({
+            email: email,
+            validateRegex: true,
+            validateMx: true,
+            validateTypo: true,
+            validateDisposable: true,
+            validateSMTP: true,
+        });
+        
+        if (!valid) {
+            return res.status(400).json({ message: `Invalid email address. Reason: ${reason}` });
+        }
+        
+        if (password.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters long' });
         }
 
         // Check if user exists
@@ -101,13 +119,52 @@ const sendVerificationEmail = async (req, res) => {
             return res.status(400).json({ message: 'Email is already verified' });
         }
 
+        const { valid, reason } = await emailValidator.validate({
+            email: user.email,
+            validateRegex: true,
+            validateMx: true,
+            validateTypo: true,
+            validateDisposable: true,
+            validateSMTP: true,
+        });
+
+        if (!valid) {
+            return res.status(400).json({ message: `Cannot send OTP. This email address appears to be invalid or does not exist. Reason: ${reason}` });
+        }
+
         // Generate a 6-digit token
         const token = Math.floor(100000 + Math.random() * 900000).toString();
         user.emailVerificationToken = token;
+        user.emailVerificationExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
         await user.save();
 
-        // In a real app, send email here. For now, return token to frontend.
-        res.json({ message: 'Verification code sent', token });
+        const sendEmail = require('../utils/sendEmail');
+        
+        const htmlMessage = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <h2 style="color: #4f46e5; text-align: center;">CampusEventHub Verification</h2>
+                <p>Hello ${user.name},</p>
+                <p>Please use the following 6-digit code to verify your email address:</p>
+                <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; border-radius: 8px; margin: 20px 0;">
+                    ${token}
+                </div>
+                <p>If you did not request this verification, please ignore this email.</p>
+                <p>Best regards,<br>The CampusEventHub Team</p>
+            </div>
+        `;
+
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Verify your CampusEventHub Account',
+                html: htmlMessage
+            });
+            res.status(200).json({ message: 'Verification code sent successfully' });
+        } catch (error) {
+            console.error('Email sending failed:', error);
+            // Even if email fails, we don't crash, but we inform the frontend
+            res.status(500).json({ message: 'Failed to send email. Please check server logs or use App Passwords.' });
+        }
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -125,6 +182,10 @@ const verifyEmail = async (req, res) => {
         
         if (user.isEmailVerified) {
             return res.status(400).json({ message: 'Email is already verified' });
+        }
+
+        if (user.emailVerificationExpires && user.emailVerificationExpires < Date.now()) {
+            return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
         }
 
         if (user.emailVerificationToken !== token) {

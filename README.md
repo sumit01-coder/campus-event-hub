@@ -1,6 +1,6 @@
 # Campus EventHub
 
-Campus EventHub is a modern, scalable event management platform built on the MERN stack. It is designed to handle college fests, seminars, and club activities with features like Role-Based Access Control, QR code attendance, and automated certificate generation.
+Campus EventHub is a modern, scalable event management platform built on the MERN stack. It is designed to handle college fests, seminars, and club activities with features like Role-Based Access Control, QR code attendance, automated email tickets, live Q&A, and PDF ticket generation.
 
 ## Documentation
 This project relies on living documentation. Please refer to the following files for in-depth information:
@@ -9,7 +9,7 @@ This project relies on living documentation. Please refer to the following files
 
 ## Project Structure
 - `/frontend`: React application built with Vite and Tailwind CSS.
-- `/backend`: Node.js/Express REST API.
+- `/backend`: Node.js/Express REST API, Socket.IO WebSockets, Nodemailer, and Node-Cron jobs.
 
 ## Setup Instructions
 

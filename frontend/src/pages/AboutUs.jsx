@@ -28,7 +28,7 @@ export default function AboutUs() {
 
         {/* Image Grid */}
         <div className="max-w-6xl mx-auto px-4 mb-24 hidden md:block">
-          <div className="grid grid-cols-3 gap-6 h-[400px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:h-[400px]">
             <div className="col-span-2 rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 relative">
               <div className="absolute inset-0 flex items-center justify-center">
                 <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80" alt="Students" className="w-full h-full object-cover opacity-80 mix-blend-overlay" />

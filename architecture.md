@@ -6,6 +6,9 @@
 - **Database:** MongoDB (using Mongoose ODM) with multi-tenant readiness via `collegeId`.
 - **Backend:** Node.js / Express.js REST APIs.
 - **Frontend:** React.js (Vite) Unified App Shell, Tailwind CSS, Shadcn/ui.
+- **Real-time:** Socket.IO for WebSockets (Live Q&A, Live Notifications).
+- **Background Jobs:** Node-Cron (for automated 24-hour event reminders).
+- **Email Service:** Nodemailer for automated transactional emails (Tickets, Broadcasts).
 - **Payments:** Razorpay architecture (currency: INR).
 
 ## 2. Dynamic RBAC & Permission Model
@@ -25,7 +28,7 @@ The system does not rely purely on static roles. It uses contextual permissions 
 
 ### Core Collections
 - **`users`**: name, email, password, role, `collegeId`, profile_details.
-- **`events`**: title, description, coverImage, dates, venue, rules, `organizerId` (User ref), `collegeId`.
+- **`events`**: title, description, coverImage, dates, venue, rules, `organizerId`, `announcements` array, `ratings` array (1-5 stars & reviews).
 - **`eventActivities`**: sub-events mapped to a parent event.
 - **`venues`**: Official campus locations.
 
@@ -45,6 +48,7 @@ The system does not rely purely on static roles. It uses contextual permissions 
 - **`issues`**: title, description, category, priority, status, reporter.
 - **`auditLogs`**: user, action, entity, timestamp.
 - **`notifications`**: user, type, message, read_status.
+- **`queries`**: user, eventId, text, isResolved, replies (Live Q&A).
 
 ## 4. API Design (RESTful)
 

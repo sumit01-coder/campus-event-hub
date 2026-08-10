@@ -29,6 +29,8 @@ export default function EventDetails() {
   const [newQueryText, setNewQueryText] = useState('');
   const [socket, setSocket] = useState(null);
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   useEffect(() => {
     // Connect to WebSocket
     const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
@@ -46,6 +48,12 @@ export default function EventDetails() {
       setQueries(prev => prev.map(q => q._id === updatedQuery._id ? updatedQuery : q));
     });
 
+    newSocket.on('registration_updated', (data) => {
+      if (data.eventId === id) {
+        setRefreshTrigger(prev => prev + 1);
+      }
+    });
+
     return () => newSocket.close();
   }, [id]);
 
@@ -59,7 +67,7 @@ export default function EventDetails() {
       }
     };
     fetchQueries();
-  }, [id]);
+  }, [id, refreshTrigger]);
 
   const handleSendQuery = (e) => {
     e.preventDefault();
@@ -175,7 +183,7 @@ export default function EventDetails() {
       }
     };
     fetchEventData();
-  }, [id, navigate]);
+  }, [id, navigate, refreshTrigger]);
 
   if (isLoading) {
     return (
@@ -395,7 +403,12 @@ export default function EventDetails() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Capacity</p>
-                    <p className="font-bold text-gray-900">{event.capacity} Attendees</p>
+                    <p className="font-bold text-gray-900">{event.capacity} Total Attendees</p>
+                    {event.registrationsCount !== undefined && (
+                      <p className={`text-sm font-bold mt-0.5 ${event.capacity - event.registrationsCount <= 10 ? 'text-red-500' : 'text-green-600'}`}>
+                        {Math.max(0, event.capacity - event.registrationsCount)} Seats Available
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -425,7 +438,7 @@ export default function EventDetails() {
                             </div>
                           )}
                           <div className="text-left">
-                            <p className="text-xs font-bold text-green-100 mb-2">Team Members ({teamMembers.length}/{event.maxGroupSize})</p>
+                            <p className="text-xs font-bold text-green-100 mb-2">Team Members ({teamMembers.length}/{registrationDetails?.isTeamLeader ? registrationDetails.teamSize : (teamMembers.find(m => m.isTeamLeader)?.teamSize || event.maxGroupSize)})</p>
                             <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                               {teamMembers.map(member => (
                                 <div key={member._id} className="flex items-center justify-between bg-black/10 px-3 py-2 rounded">
@@ -445,7 +458,7 @@ export default function EventDetails() {
                                   </div>
                                 </div>
                               ))}
-                              {teamMembers.length < event.maxGroupSize && (
+                              {teamMembers.length < (registrationDetails?.isTeamLeader ? registrationDetails.teamSize : (teamMembers.find(m => m.isTeamLeader)?.teamSize || event.maxGroupSize)) && (
                                 <div className="text-center py-1">
                                   <span className="text-xs text-green-200/60 font-medium italic">Waiting for members to join...</span>
                                 </div>

@@ -34,12 +34,17 @@ const getUsers = async (req, res) => {
     }
 };
 
-// @desc    Get all organizers
+// @desc    Get all organizers (including pending applications)
 // @route   GET /api/admin/organizers
 // @access  Private (Admin)
 const getOrganizers = async (req, res) => {
     try {
-        const organizers = await User.find({ 'capabilities.organizer': true })
+        const organizers = await User.find({
+            $or: [
+                { 'capabilities.organizer': true },
+                { 'organizerProfile.verificationStatus': { $in: ['pending', 'verified', 'rejected'] } }
+            ]
+        })
             .select('-password')
             .sort({ createdAt: -1 });
         res.json(organizers);
@@ -61,11 +66,18 @@ const updateOrganizerStatus = async (req, res) => {
 
         const user = await User.findById(req.params.id);
         
-        if (!user || !user.capabilities.organizer) {
-            return res.status(404).json({ message: 'Organizer not found' });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
 
         user.organizerProfile.verificationStatus = status;
+        
+        if (status === 'verified') {
+            user.capabilities.organizer = true;
+        } else if (status === 'rejected' || status === 'none') {
+            user.capabilities.organizer = false;
+        }
+
         await user.save();
 
         res.json({ message: `Organizer status updated to ${status}`, user });

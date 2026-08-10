@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const { spawn } = require('child_process');
 const path = require('path');
+const emailValidator = require('deep-email-validator');
 
 // @desc    Update user onboarding and profile data
 // @route   POST /api/users/onboarding
@@ -17,11 +18,11 @@ const updateOnboarding = async (req, res) => {
         }
 
         // Update fields if provided
-        if (capabilities) {
-            user.capabilities = {
-                participant: capabilities.participant !== undefined ? capabilities.participant : user.capabilities.participant,
-                organizer: capabilities.organizer !== undefined ? capabilities.organizer : user.capabilities.organizer,
-            };
+        // Ensure users cannot arbitrarily set themselves as organizers without verification
+        if (capabilities && capabilities.participant !== undefined) {
+            if (!user.capabilities) user.capabilities = {};
+            user.capabilities.participant = capabilities.participant;
+            // Deliberately ignoring capabilities.organizer here to prevent escalation
         }
 
         if (profile) {
@@ -29,7 +30,9 @@ const updateOnboarding = async (req, res) => {
         }
 
         if (organizerProfile) {
-            user.organizerProfile = { ...user.organizerProfile, ...organizerProfile };
+            // Strip out any verificationStatus sent by the client
+            const { verificationStatus, ...safeOrganizerProfile } = organizerProfile;
+            user.organizerProfile = { ...user.organizerProfile, ...safeOrganizerProfile };
             
             // If they are setting up an organizer profile, mark verification as pending
             if (!user.organizerProfile.verificationStatus || user.organizerProfile.verificationStatus === 'none') {
@@ -60,7 +63,7 @@ const updateOnboarding = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
     try {
-        const { name, phone, college, department, year, studentId, organizationType, organizationName, designation } = req.body;
+        const { name, email, phone, college, department, year, studentId, organizationType, organizationName, designation } = req.body;
         
         const user = await User.findById(req.user.id);
         
@@ -70,6 +73,28 @@ const updateProfile = async (req, res) => {
 
         if (name) user.name = name;
         if (phone !== undefined) user.phone = phone;
+
+        if (email && email !== user.email) {
+            const { valid, reason } = await emailValidator.validate({
+                email: email,
+                validateRegex: true,
+                validateMx: true,
+                validateTypo: true,
+                validateDisposable: true,
+                validateSMTP: true,
+            });
+
+            if (!valid) {
+                return res.status(400).json({ message: `Invalid email address. Reason: ${reason}` });
+            }
+
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                return res.status(400).json({ message: 'Email is already in use by another account' });
+            }
+            user.email = email;
+            user.isEmailVerified = false;
+        }
 
         // Ensure profile object exists
         if (!user.profile) {
@@ -90,14 +115,18 @@ const updateProfile = async (req, res) => {
             if (organizationName) user.organizerProfile.organizationName = organizationName;
             if (designation) user.organizerProfile.designation = designation;
             
-            // Set verification status to pending if it's currently none
-            if (!user.organizerProfile.verificationStatus || user.organizerProfile.verificationStatus === 'none') {
+            // Set verification status to pending if it's currently none or rejected
+            if (!user.organizerProfile.verificationStatus || ['none', 'rejected'].includes(user.organizerProfile.verificationStatus)) {
                 user.organizerProfile.verificationStatus = 'pending';
             }
             
-            // Set capabilities flag to true so they have the organizer role
+            // Ensure capability reflects verified status. Wait for admin approval to become fully capable.
             if (!user.capabilities) user.capabilities = {};
-            user.capabilities.organizer = true;
+            if (user.organizerProfile.verificationStatus === 'verified') {
+                user.capabilities.organizer = true;
+            } else {
+                user.capabilities.organizer = false;
+            }
         }
 
         const updatedUser = await user.save();
@@ -211,8 +240,49 @@ const submitIdentityVerification = async (req, res) => {
     }
 };
 
+const bcrypt = require('bcryptjs');
+
+// @desc    Delete user account completely
+// @route   DELETE /api/users/profile
+// @access  Private
+const deleteAccount = async (req, res) => {
+    try {
+        const { password } = req.body;
+        
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required to delete account' });
+        }
+
+        const user = await User.findById(req.user.id);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid password' });
+        }
+
+        // Delete associated records to completely wipe the user
+        const Event = require('../models/Event');
+        await Event.deleteMany({ organizerId: user._id });
+        
+        const Registration = require('../models/Registration');
+        await Registration.deleteMany({ userId: user._id });
+
+        await user.deleteOne();
+
+        res.json({ message: 'Account completely deleted' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
 module.exports = {
     updateOnboarding,
     updateProfile,
-    submitIdentityVerification
+    submitIdentityVerification,
+    deleteAccount
 };

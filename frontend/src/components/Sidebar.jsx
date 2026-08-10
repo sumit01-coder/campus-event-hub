@@ -12,12 +12,12 @@ export default function Sidebar() {
 
   const baseNavItems = [
     { name: 'Explore Events', path: '/dashboard', icon: Home },
-    { name: 'My Events', path: '/events', icon: Calendar },
+    { name: 'My Tickets', path: '/events', icon: Calendar },
+    { name: 'My Hosted Events', path: '/hosted-events', icon: Building },
   ];
 
   const organizerNavItems = user?.capabilities?.organizer ? [
     { name: 'Host an Event', path: '/host', icon: PlusCircle },
-    { name: 'My Hosted Events', path: '/hosted-events', icon: Building },
   ] : [];
 
   const footerNavItems = [
@@ -33,10 +33,26 @@ export default function Sidebar() {
   };
 
   return (
-    <div className={`bg-white/80 backdrop-blur-xl border-r border-gray-200 flex flex-col pt-4 pb-4 z-40 fixed top-20 left-0 h-[calc(100vh-80px)] overflow-y-auto transition-all duration-300 ${isOpen ? 'w-64' : 'w-[72px]'}`}>
-      
-      {/* Toggle Button */}
-      <div className="px-4 mb-6 flex justify-start">
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[55] transition-opacity duration-300" 
+          onClick={toggleSidebar}
+        />
+      )}
+      <div className={`bg-white/95 backdrop-blur-xl border-r border-gray-200 flex flex-col pt-4 pb-4 fixed top-0 md:top-20 left-0 h-full md:h-[calc(100vh-80px)] overflow-y-auto transition-all duration-300 z-[60] md:z-40 transform ${isOpen ? 'w-64 translate-x-0' : 'w-64 md:w-[72px] -translate-x-full md:translate-x-0'}`}>
+        
+        {/* Mobile Header (Only visible on small screens) */}
+        <div className="md:hidden px-4 mb-4 flex items-center justify-between border-b border-gray-100 pb-4">
+          <div className="font-bold text-gray-900 text-lg">Menu</div>
+          <button onClick={toggleSidebar} className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl">
+             <Menu size={22} />
+          </button>
+        </div>
+        
+        {/* Toggle Button (Desktop only) */}
+        <div className="hidden md:flex px-4 mb-6 justify-start">
         <button 
           onClick={toggleSidebar} 
           className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-xl transition-colors"
@@ -54,16 +70,16 @@ export default function Sidebar() {
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-medium text-[15px] group ${
+              className={`flex items-center ${isOpen ? 'gap-3' : 'md:gap-0 gap-3'} px-3 py-3 rounded-xl transition-all overflow-hidden font-medium text-[15px] group ${
                 isActive
                   ? 'text-indigo-700 bg-indigo-50'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
               <div className="flex items-center justify-center min-w-[24px]">
-                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <Icon size={22} strokeWidth={isActive ? 2.25 : 1.75} />
               </div>
-              <span className={`whitespace-nowrap transition-all duration-300 ${isOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'}`}>
+              <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${isOpen ? 'opacity-100 max-w-[200px]' : 'md:opacity-0 md:max-w-0 opacity-100 max-w-[200px]'}`}>
                 {item.name}
               </span>
             </Link>
@@ -71,12 +87,12 @@ export default function Sidebar() {
         })}
 
         {/* Section Divider */}
-        {isOpen && (
-          <div className="px-3 pt-6 pb-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Account</p>
-          </div>
-        )}
-        {!isOpen && <div className="h-4"></div>}
+        <div className="px-3 pt-6 pb-2 relative flex items-center justify-center min-h-[48px]">
+          <span className={`text-xs font-semibold text-gray-500 transition-all duration-300 whitespace-nowrap absolute left-4 ${isOpen ? 'opacity-100' : 'md:opacity-0'}`}>
+            Your Account
+          </span>
+          <div className={`h-[1px] bg-gray-200 transition-all duration-300 ${isOpen ? 'w-0 opacity-0' : 'md:w-8 md:opacity-100 w-0 opacity-0'}`} />
+        </div>
 
         {footerNavItems.map((item) => {
           const Icon = item.icon;
@@ -86,16 +102,16 @@ export default function Sidebar() {
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-medium text-[15px] group ${
+              className={`flex items-center ${isOpen ? 'gap-3' : 'md:gap-0 gap-3'} px-3 py-3 rounded-xl transition-all overflow-hidden font-medium text-[15px] group ${
                 isActive
                   ? 'text-indigo-700 bg-indigo-50'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
               <div className="flex items-center justify-center min-w-[24px]">
-                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <Icon size={22} strokeWidth={isActive ? 2.25 : 1.75} />
               </div>
-              <span className={`whitespace-nowrap transition-all duration-300 ${isOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'}`}>
+              <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${isOpen ? 'opacity-100 max-w-[200px]' : 'md:opacity-0 md:max-w-0 opacity-100 max-w-[200px]'}`}>
                 {item.name}
               </span>
               {isOpen && <ChevronRight size={16} className="ml-auto text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
@@ -104,19 +120,20 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="px-3 mt-auto pt-4">
-        <button 
-          onClick={handleLogout} 
-          className="w-full flex items-center gap-3 px-3 py-3 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-medium text-[15px]"
-        >
-          <div className="flex items-center justify-center min-w-[24px]">
-            <LogOut size={22} />
-          </div>
-          <span className={`whitespace-nowrap transition-all duration-300 ${isOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'}`}>
-            Logout
-          </span>
-        </button>
+        <div className="mt-4 px-3">
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center ${isOpen ? 'gap-3' : 'md:gap-0 gap-3'} px-3 py-3 rounded-xl transition-all overflow-hidden font-medium text-[15px] group text-red-500 hover:bg-red-50`}
+          >
+            <div className="flex items-center justify-center min-w-[24px]">
+              <LogOut size={22} strokeWidth={1.75} />
+            </div>
+            <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${isOpen ? 'opacity-100 max-w-[200px]' : 'md:opacity-0 md:max-w-0 opacity-100 max-w-[200px]'}`}>
+              Log Out
+            </span>
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

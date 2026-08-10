@@ -28,4 +28,33 @@ api.interceptors.request.use(
   }
 );
 
+// Interceptor to catch and log errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Avoid infinite loop if the log request itself fails
+    if (error.config && error.config.url !== '/logs') {
+      const logData = {
+        level: 'error',
+        message: error.response?.data?.message || error.message || 'Unknown API Error',
+        context: 'Frontend API',
+        url: error.config?.url,
+        details: {
+          status: error.response?.status,
+          method: error.config?.method,
+          data: error.config?.data,
+        }
+      };
+      
+      const authHeader = error.config?.headers?.Authorization;
+      // Fire and forget
+      axios.post('http://localhost:5000/api/logs', logData, {
+        headers: authHeader ? { Authorization: authHeader } : {}
+      }).catch(err => console.error('Failed to report log to server', err));
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 export default api;

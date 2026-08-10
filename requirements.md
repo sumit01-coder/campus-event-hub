@@ -30,9 +30,12 @@ Campus EventHub is a centralized, SaaS-style event management platform for unive
 
 ### Phase 3: Operations
 - Payments integration (Razorpay ready, INR default).
-- QR Registration Pass generation.
-- QR Attendance Scanning (prevent duplicates).
-- Announcements (in-app/email).
+- QR Registration Pass generation & PDF Ticket Download.
+- QR Attendance Scanning (prevent duplicates via html5-qrcode).
+- Real-time Announcements (Socket.io) and Email Broadcasts.
+- Automated Email Notifications (Registration, Broadcasts, 24-hr Reminders).
+- Live Q&A system for Events.
+- Post-Event Feedback & 5-Star Rating System.
 
 ### Phase 4: Post-Event
 - Results publishing (Winners, Runners-up).

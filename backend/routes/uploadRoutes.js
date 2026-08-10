@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { protect } = require('../middleware/authMiddleware');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../uploads');
@@ -16,18 +17,24 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-        // Create unique filename with original extension
+        // Create unique filename with safe extensions based on exact mime type
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+        let ext = '.png'; // default fallback
+        if (file.mimetype === 'image/jpeg') ext = '.jpg';
+        if (file.mimetype === 'image/png') ext = '.png';
+        if (file.mimetype === 'image/webp') ext = '.webp';
+        
+        cb(null, uniqueSuffix + ext);
     }
 });
 
-// File filter (accept images only)
+// File filter (accept exact safe image mimetypes only)
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Not an image! Please upload an image.'), false);
+        cb(new Error('Not an image! Please upload a valid JPEG, PNG, or WEBP file.'), false);
     }
 };
 
@@ -40,7 +47,7 @@ const upload = multer({
 });
 
 // POST /api/upload
-router.post('/', upload.single('image'), (req, res) => {
+router.post('/', protect, upload.single('image'), (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: 'Please upload a file' });

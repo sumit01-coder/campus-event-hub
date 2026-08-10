@@ -35,7 +35,7 @@ export default function MyEvents() {
   }, []);
 
   return (
-    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
       <Navbar />
       <Sidebar />
       <main className="flex-1 w-full p-6 lg:p-8 overflow-y-auto animate-fade-in-up">

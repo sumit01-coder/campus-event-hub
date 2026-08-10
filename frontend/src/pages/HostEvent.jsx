@@ -13,6 +13,17 @@ export default function HostEvent() {
   const navigate = useNavigate();
   const { isOpen } = useContext(SidebarContext);
   
+  const today = new Date();
+  const offset = today.getTimezoneOffset() * 60000;
+  const localISOTime = (new Date(today - offset)).toISOString().slice(0, 16); 
+  const todayDateString = localISOTime.split('T')[0];
+  const currentTimeString = localISOTime.split('T')[1];
+  const currentDateTimeString = localISOTime;
+
+  const [dateError, setDateError] = useState('');
+  const [timeError, setTimeError] = useState('');
+  const [deadlineError, setDeadlineError] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -27,7 +38,8 @@ export default function HostEvent() {
     capacity: '',
     registrationDeadline: '',
     participationType: 'individual',
-    maxGroupSize: 1
+    maxGroupSize: 1,
+    isHackathon: false
   });
 
   // Verification Checks
@@ -37,7 +49,7 @@ export default function HostEvent() {
   // Not an organizer
   if (!isOrganizer) {
     return (
-      <div className={`min-h-screen bg-[#F5F5F7] pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+      <div className={`min-h-screen bg-[#F5F5F7] pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
         <Navbar />
         <Sidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -47,8 +59,8 @@ export default function HostEvent() {
                 <ShieldAlert className="w-16 h-16 text-orange-500 mx-auto mb-6" />
                 <h2 className="text-2xl font-bold text-textPrimary mb-3 tracking-tight">Organizer Access Required</h2>
                 <p className="text-textSecondary mb-8 leading-relaxed">You need to upgrade your account to "Host Events" before you can publish events to the platform.</p>
-                <button onClick={() => navigate('/settings')} className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-sm">
-                  Update Profile Settings
+                <button onClick={() => navigate('/profile?edit=true')} className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-sm">
+                  Upgrade Account
                 </button>
               </div>
             </div>
@@ -61,7 +73,7 @@ export default function HostEvent() {
   // Pending Verification
   if (verifyStatus === 'pending') {
     return (
-      <div className={`min-h-screen bg-[#F5F5F7] pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+      <div className={`min-h-screen bg-[#F5F5F7] pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
         <Navbar />
         <Sidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -82,7 +94,7 @@ export default function HostEvent() {
   // Rejected Verification
   if (verifyStatus === 'rejected') {
     return (
-      <div className={`min-h-screen bg-[#F5F5F7] pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+      <div className={`min-h-screen bg-[#F5F5F7] pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
         <Navbar />
         <Sidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -106,7 +118,46 @@ export default function HostEvent() {
   // --- Verified Organizer Flow ---
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      
+      if (name === 'date' || name === 'time' || name === 'registrationDeadline') {
+        validateDates(newData.date, newData.time, newData.registrationDeadline);
+      }
+      return newData;
+    });
+  };
+
+  const validateDates = (date, time, deadline) => {
+    let isValid = true;
+    setDateError('');
+    setTimeError('');
+    setDeadlineError('');
+
+    if (date && date < todayDateString) {
+      setDateError('Event date cannot be in the past');
+      isValid = false;
+    }
+
+    if (date === todayDateString && time && time < currentTimeString) {
+      setTimeError('Event time cannot be in the past');
+      isValid = false;
+    }
+
+    if (deadline && deadline < currentDateTimeString) {
+      setDeadlineError('Deadline cannot be in the past');
+      isValid = false;
+    }
+
+    if (date && time && deadline) {
+      const eventDateTime = `${date}T${time}`;
+      if (deadline >= eventDateTime) {
+        setDeadlineError('Deadline must be before the event starts');
+        isValid = false;
+      }
+    }
+    return isValid;
   };
 
   const handleImageUpload = async (e) => {
@@ -141,6 +192,10 @@ export default function HostEvent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateDates(formData.date, formData.time, formData.registrationDeadline)) {
+      toast.error('Please fix the date/time errors before publishing.');
+      return;
+    }
     setIsSubmitting(true);
     
     try {
@@ -155,7 +210,7 @@ export default function HostEvent() {
   };
 
   return (
-    <div className={`min-h-screen bg-gray-50 flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+    <div className={`min-h-screen bg-gray-50 flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
       <Navbar />
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
@@ -269,10 +324,12 @@ export default function HostEvent() {
                         name="date" 
                         value={formData.date} 
                         onChange={handleChange} 
+                        min={todayDateString}
                         required 
-                        className="w-full pl-3 pr-9 bg-white border border-gray-200 py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-gray-500" 
+                        className={`w-full pl-3 pr-9 bg-white border ${dateError ? 'border-red-500' : 'border-gray-200'} py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-gray-500`} 
                       />
                     </div>
+                    {dateError && <p className="text-xs text-red-500 mt-1">{dateError}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">Time (IST) <span className="text-red-500">*</span></label>
@@ -284,9 +341,10 @@ export default function HostEvent() {
                         value={formData.time} 
                         onChange={handleChange} 
                         required 
-                        className="w-full pl-3 pr-9 bg-white border border-gray-200 py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-gray-500" 
+                        className={`w-full pl-3 pr-9 bg-white border ${timeError ? 'border-red-500' : 'border-gray-200'} py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-gray-500`} 
                       />
                     </div>
+                    {timeError && <p className="text-xs text-red-500 mt-1">{timeError}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">Venue <span className="text-red-500">*</span></label>
@@ -434,11 +492,39 @@ export default function HostEvent() {
                         name="registrationDeadline" 
                         value={formData.registrationDeadline} 
                         onChange={handleChange} 
+                        min={currentDateTimeString}
+                        max={formData.date && formData.time ? `${formData.date}T${formData.time}` : undefined}
                         required
-                        className="w-full pl-3 pr-9 bg-white border border-gray-200 py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-gray-500" 
+                        className={`w-full pl-3 pr-9 bg-white border ${deadlineError ? 'border-red-500' : 'border-gray-200'} py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-gray-500`} 
                       />
                     </div>
-                    <p className="text-[10px] text-gray-500">Last date to register</p>
+                    {deadlineError ? (
+                      <p className="text-xs text-red-500">{deadlineError}</p>
+                    ) : (
+                      <p className="text-[10px] text-gray-500">Last date to register</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Hackathon Toggle */}
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border border-purple-100 flex items-start gap-4 mt-6">
+                  <div className="pt-1">
+                    <input
+                      type="checkbox"
+                      id="isHackathon"
+                      name="isHackathon"
+                      checked={formData.isHackathon}
+                      onChange={(e) => setFormData(prev => ({ ...prev, isHackathon: e.target.checked }))}
+                      className="w-5 h-5 text-purple-600 rounded border-purple-300 focus:ring-purple-500 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="isHackathon" className="block text-sm font-bold text-purple-900 cursor-pointer">
+                      This is a Hackathon / Project-based Event
+                    </label>
+                    <p className="text-xs text-purple-700 mt-1 leading-relaxed">
+                      Enabling this allows you to define Problem Statements, collect preferences from teams, assign problems, and receive GitHub/Demo links through the platform.
+                    </p>
                   </div>
                 </div>
               </div>

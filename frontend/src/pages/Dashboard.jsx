@@ -32,14 +32,14 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+    <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
       <Navbar />
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
         <main className="flex-1 p-6 md:p-10 overflow-y-auto animate-fade-in-up">
 
           {/* Hero Banner - Soft UI Evolution */}
-          <div className="relative w-full h-[220px] rounded-[32px] overflow-hidden mb-10 bg-gradient-to-br from-[#E0F2FE] via-[#F3E8FF] to-[#FCE7F3] flex items-center justify-between px-12 shadow-[0_8px_32px_rgba(0,0,0,0.03)] border border-white/60">
+          <div className="relative w-full min-h-[220px] h-auto py-8 md:py-0 md:h-[220px] rounded-[32px] overflow-hidden mb-10 bg-gradient-to-br from-[#E0F2FE] via-[#F3E8FF] to-[#FCE7F3] flex flex-col md:flex-row items-center justify-between px-6 md:px-12 gap-6 shadow-[0_8px_32px_rgba(0,0,0,0.03)] border border-white/60">
             {/* Decorative Background Shapes */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-60">
               <svg width="100%" height="100%" viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -74,17 +74,17 @@ export default function Dashboard() {
             </div>
 
             {/* Right Content (Search & Filter - Glassmorphism) */}
-            <div className="relative z-10 hidden lg:flex items-center gap-4">
+            <div className="relative z-10 flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
               {/* Join with Code Button */}
               <button 
                 onClick={() => setIsJoinModalOpen(true)}
-                className="flex items-center gap-2 bg-indigo-600/95 backdrop-blur-xl border border-indigo-500 px-6 py-3.5 rounded-full text-sm font-bold text-white hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 whitespace-nowrap hover:-translate-y-0.5"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600/95 backdrop-blur-xl border border-indigo-500 px-6 py-3.5 rounded-full text-sm font-bold text-white hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 whitespace-nowrap hover:-translate-y-0.5"
               >
                 <Users size={18} /> Join with Code
               </button>
               
               {/* Search & Filter Combined Pill */}
-              <div className="flex items-center bg-white/80 backdrop-blur-2xl border border-white rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.06)] p-1.5 w-[380px] transition-all focus-within:ring-4 focus-within:ring-indigo-500/20 focus-within:bg-white">
+              <div className="flex flex-col sm:flex-row items-center bg-white/80 backdrop-blur-2xl border border-white rounded-2xl sm:rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.06)] p-1.5 w-full md:w-[380px] transition-all focus-within:ring-4 focus-within:ring-indigo-500/20 focus-within:bg-white gap-2 sm:gap-0">
                 <div className="relative flex-1">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                   <input 
@@ -93,8 +93,8 @@ export default function Dashboard() {
                     className="w-full bg-transparent pl-11 pr-4 py-2.5 outline-none text-sm font-medium placeholder:text-gray-400 text-gray-800"
                   />
                 </div>
-                <div className="w-[1px] bg-gray-200 h-6 mx-1"></div>
-                <button className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                <div className="hidden sm:block w-[1px] bg-gray-200 h-6 mx-1"></div>
+                <button className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
                   <Filter size={16} /> Filters
                 </button>
               </div>
@@ -102,8 +102,8 @@ export default function Dashboard() {
           </div>
 
           {/* Pill Tabs & Sort */}
-          <div className="flex flex-wrap items-center justify-between mb-8 gap-4">
-            <div className="flex gap-3">
+          <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+            <div className="flex flex-wrap justify-center md:justify-start gap-2 md:gap-3 w-full md:w-auto">
               <button 
                 onClick={() => setActiveTab('all')}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold transition-all duration-300 ${activeTab === 'all' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)] -translate-y-0.5' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100 hover:-translate-y-0.5 hover:shadow-sm'}`}

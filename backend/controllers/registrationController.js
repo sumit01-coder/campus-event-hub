@@ -1,6 +1,7 @@
 const Registration = require('../models/Registration');
 const Event = require('../models/Event');
 const Notification = require('../models/Notification');
+const { sendTicketEmail } = require('../services/emailService');
 
 // Utility function to generate a random 6-character alphanumeric code
 const generateTeamCode = () => {
@@ -71,6 +72,26 @@ const registerForEvent = async (req, res) => {
         await notif.save();
         if (req.io) {
             req.io.to(req.user._id.toString()).emit('new_notification', notif);
+            req.io.emit('registration_updated', { eventId: eventId.toString() });
+        }
+
+        // Send Email Ticket
+        try {
+            const ticketId = registration._id.toString().substring(registration._id.toString().length - 8).toUpperCase();
+            // Assuming frontend URL is http://localhost:5173 for local, fallback to that
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(frontendUrl + '/checkin/' + event._id + '/' + registration._id)}`;
+            
+            await sendTicketEmail(
+                registration.email || req.user.email,
+                registration.participantName,
+                event.title,
+                ticketId,
+                qrDataUrl
+            );
+        } catch (emailErr) {
+            console.error("Failed to send ticket email", emailErr);
+            // Non-blocking error
         }
         
         res.status(201).json(registration);
@@ -268,9 +289,12 @@ const getEventRegistrations = async (req, res) => {
             return res.status(404).json({ message: 'Event not found' });
         }
 
-        // Ensure user is the organizer of the event
-        if (event.organizerId.toString() !== req.user._id.toString()) {
-            return res.status(401).json({ message: 'Not authorized. Only the event organizer can view registrations.' });
+        // Ensure user is the organizer or a coordinator of the event
+        const isOrganizer = event.organizerId.toString() === req.user._id.toString();
+        const isCoordinator = event.coordinators && event.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+        
+        if (!isOrganizer && !isCoordinator) {
+            return res.status(401).json({ message: 'Not authorized. Only the event organizer or coordinators can view registrations.' });
         }
 
         // Fetch all registrations for this event
@@ -301,8 +325,11 @@ const checkInRegistration = async (req, res) => {
             return res.status(404).json({ message: 'Event not found' });
         }
 
-        if (event.organizerId.toString() !== req.user._id.toString()) {
-            return res.status(401).json({ message: 'Not authorized. Only the event organizer can check-in attendees.' });
+        const isOrganizer = event.organizerId.toString() === req.user._id.toString();
+        const isCoordinator = event.coordinators && event.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+
+        if (!isOrganizer && !isCoordinator) {
+            return res.status(401).json({ message: 'Not authorized. Only the event organizer or coordinators can check-in attendees.' });
         }
 
         registration.status = 'attended';
@@ -366,6 +393,83 @@ const rejectCancellation = async (req, res) => {
     }
 };
 
+// @desc    Update problem statement preferences (Hackathon)
+// @route   PUT /api/registrations/:id/preferences
+// @access  Private (Registered User / Team Leader)
+const setProblemPreferences = async (req, res) => {
+    try {
+        const { preferences } = req.body;
+        const registration = await Registration.findById(req.params.id);
+
+        if (!registration) return res.status(404).json({ message: 'Registration not found' });
+        
+        // Ensure the logged in user owns this registration
+        if (registration.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to update this registration' });
+        }
+
+        registration.preferences = preferences;
+        await registration.save();
+        res.json(registration);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Assign a problem to a team (Hackathon)
+// @route   PUT /api/registrations/:id/assign
+// @access  Private (Organizer)
+const assignProblem = async (req, res) => {
+    try {
+        const { assignedProblemId } = req.body;
+        const registration = await Registration.findById(req.params.id).populate('eventId');
+        
+        if (!registration) return res.status(404).json({ message: 'Registration not found' });
+
+        // Ensure logged in user is the organizer or coordinator of the event
+        const isOrganizer = registration.eventId.organizerId.toString() === req.user._id.toString();
+        const isCoordinator = registration.eventId.coordinators && registration.eventId.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+
+        if (!isOrganizer && !isCoordinator) {
+            return res.status(403).json({ message: 'Not authorized. Only the event organizer or coordinators can assign problems.' });
+        }
+
+        registration.assignedProblemId = assignedProblemId;
+        await registration.save();
+        res.json(registration);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Submit a project (Hackathon)
+// @route   PUT /api/registrations/:id/submit
+// @access  Private (Registered User / Team Leader)
+const submitProject = async (req, res) => {
+    try {
+        const { githubLink, liveDemoLink, presentationLink } = req.body;
+        const registration = await Registration.findById(req.params.id);
+
+        if (!registration) return res.status(404).json({ message: 'Registration not found' });
+        
+        if (registration.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        registration.projectSubmission = {
+            githubLink,
+            liveDemoLink,
+            presentationLink,
+            submittedAt: new Date()
+        };
+        
+        await registration.save();
+        res.json(registration);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
 module.exports = {
     registerForEvent,
     getMyRegistrations,
@@ -376,5 +480,8 @@ module.exports = {
     getEventRegistrations,
     checkInRegistration,
     approveCancellation,
-    rejectCancellation
+    rejectCancellation,
+    setProblemPreferences,
+    assignProblem,
+    submitProject
 };

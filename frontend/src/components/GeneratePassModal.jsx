@@ -1,14 +1,43 @@
-import React, { useRef } from 'react';
-import { X, Printer, QrCode, Calendar, MapPin, Ticket, Mail } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { X, Printer, QrCode, Calendar, MapPin, Ticket, Mail, Download, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export default function GeneratePassModal({ isOpen, onClose, userReg, event }) {
   const printRef = useRef();
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   if (!isOpen || !userReg || !event) return null;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current) return;
+    try {
+      setIsGeneratingPDF(true);
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2, // Higher quality
+        useCORS: true, // Allow external images (like QR code)
+      });
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      // Add slightly down from top
+      pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+      pdf.save(`Ticket_${event.title.replace(/\s+/g, '_')}.pdf`);
+      toast.success('Ticket downloaded successfully!');
+    } catch (err) {
+      console.error('Failed to generate PDF', err);
+      toast.error('Failed to generate PDF ticket');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   // Generate a mock unique ticket ID based on object ID
@@ -30,7 +59,14 @@ export default function GeneratePassModal({ isOpen, onClose, userReg, event }) {
             }}
             className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-colors"
           >
-            <Mail size={18} /> Email Pass
+            <Mail size={18} /> Email
+          </button>
+          <button 
+            onClick={handleDownloadPDF}
+            disabled={isGeneratingPDF}
+            className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-colors disabled:opacity-50"
+          >
+            {isGeneratingPDF ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />} PDF
           </button>
           <button 
             onClick={handlePrint}

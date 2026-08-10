@@ -2,9 +2,10 @@ import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { SidebarContext } from '../context/SidebarContext';
-import { LogOut, User, Bell, ChevronDown, Menu } from 'lucide-react';
+import { LogOut, User, Bell, ChevronDown, Menu, Megaphone, X } from 'lucide-react';
 import api from '../services/api';
 import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
@@ -38,6 +39,55 @@ export default function Navbar() {
 
     socket.on('new_notification', (notif) => {
       setNotifications(prev => [notif, ...prev]);
+      
+      // Play notification sound
+      try {
+        const audio = new Audio('/notification.mp3');
+        audio.volume = 1.0;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => console.log('Audio autoplay blocked by browser', e));
+        }
+      } catch (err) {
+        console.log('Audio playback failed', err);
+      }
+
+      // Show toast if it's an announcement
+      if (notif.title && notif.title.includes('Announcement:')) {
+        const eventTitle = notif.title.replace('Announcement: ', '');
+        toast.custom((t) => (
+          <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-gradient-to-br from-indigo-600 to-indigo-800 shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden border border-indigo-400/30 transform transition-all`}>
+            <div className="p-5 flex-1 w-0">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-white shadow-inner backdrop-blur-sm border border-white/10">
+                    <Megaphone size={24} />
+                  </div>
+                </div>
+                <div className="ml-4 flex-1">
+                  <p className="text-xs font-black text-indigo-200 uppercase tracking-widest mb-1">
+                    Live Broadcast
+                  </p>
+                  <p className="text-base font-bold text-white leading-tight mb-2">
+                    {eventTitle}
+                  </p>
+                  <p className="text-sm text-indigo-50 font-medium leading-relaxed bg-white/10 p-3 rounded-lg border border-white/5">
+                    {notif.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-indigo-400/20 bg-indigo-900/20">
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-sm font-bold text-indigo-200 hover:text-white hover:bg-indigo-700/50 focus:outline-none transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        ), { duration: 10000, position: 'top-right' });
+      }
     });
 
     return () => socket.close();
@@ -49,6 +99,16 @@ export default function Navbar() {
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (err) {
       console.error('Failed to mark notifications as read');
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    try {
+      await api.delete('/notifications/clear-all');
+      setNotifications([]);
+    } catch (err) {
+      console.error('Failed to clear notifications');
+      toast.error('Failed to clear notifications');
     }
   };
 
@@ -84,8 +144,14 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-white shadow-[0_4px_32px_rgba(0,0,0,0.04)] transition-all duration-300">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         <div className="flex justify-between items-center h-20">
-          {/* Logo */}
-          <div className="flex items-center w-1/4">
+          {/* Mobile Menu Toggle & Logo */}
+          <div className="flex items-center md:w-1/4 gap-3">
+            <button 
+              onClick={toggleSidebar} 
+              className="md:hidden p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <Menu size={24} />
+            </button>
             <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
               <img src="/logo.png" alt="CampusConnect Hub Logo" className="h-16 md:h-20 w-auto object-contain -ml-2 drop-shadow-md" onError={(e) => {
                 e.target.onerror = null;
@@ -146,9 +212,16 @@ export default function Navbar() {
                   {isNotificationsOpen && (
                     <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-100 py-3 z-50 animate-fade-in-up origin-top-right">
                       <div className="px-4 pb-3 border-b border-gray-50 flex justify-between items-center">
-                        <h3 className="font-bold text-gray-900">Notifications</h3>
-                        {unreadCount > 0 && (
-                          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">{unreadCount} New</span>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-gray-900">Notifications</h3>
+                          {unreadCount > 0 && (
+                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">{unreadCount} New</span>
+                          )}
+                        </div>
+                        {notifications.length > 0 && (
+                          <button onClick={clearAllNotifications} className="text-xs text-gray-400 hover:text-red-500 font-medium transition-colors">
+                            Clear All
+                          </button>
                         )}
                       </div>
                       
@@ -229,10 +302,10 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <Link to="/login" className="text-gray-600 hover:text-gray-900 font-bold text-[14px] transition-colors">
+                <Link to="/login" className="hidden md:block text-gray-600 hover:text-gray-900 font-bold text-[14px] transition-colors">
                   Sign In
                 </Link>
-                <Link to="/register" className="bg-[#2563EB] hover:bg-blue-700 text-white px-7 py-2.5 rounded-full font-bold text-[14px] transition-all duration-300 shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:shadow-[0_6px_16px_rgba(37,99,235,0.4)] hover:-translate-y-0.5">
+                <Link to="/register" className="bg-[#2563EB] hover:bg-blue-700 text-white px-4 md:px-7 py-2 md:py-2.5 rounded-full font-bold text-xs md:text-[14px] transition-all duration-300 shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:shadow-[0_6px_16px_rgba(37,99,235,0.4)] hover:-translate-y-0.5">
                   Get Started
                 </Link>
               </>

@@ -6,6 +6,7 @@ import { SidebarProvider } from './context/SidebarContext';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -39,6 +40,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminOrganizers from './pages/admin/AdminOrganizers';
 import AdminPlaceholder from './pages/admin/AdminPlaceholder';
+import AdminLogs from './pages/admin/AdminLogs';
 
 function AdminRoute({ children }) {
   const { admin, loading } = React.useContext(AdminContext);
@@ -57,16 +59,16 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/events" element={<MyEvents />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/host" element={<HostEvent />} />
-            <Route path="/checkin/:eventId/:registrationId" element={<EventCheckin />} />
-            <Route path="/hosted-events" element={<HostedEvents />} />
-            <Route path="/hosted-events/:id/registrations" element={<EventRegistrations />} />
-            <Route path="/hosted-events/:id/queries" element={<EventQueries />} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/events" element={<ProtectedRoute><MyEvents /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/host" element={<ProtectedRoute><HostEvent /></ProtectedRoute>} />
+            <Route path="/checkin/:eventId/:registrationId" element={<ProtectedRoute><EventCheckin /></ProtectedRoute>} />
+            <Route path="/hosted-events" element={<ProtectedRoute><HostedEvents /></ProtectedRoute>} />
+            <Route path="/hosted-events/:id/registrations" element={<ProtectedRoute><EventRegistrations /></ProtectedRoute>} />
+            <Route path="/hosted-events/:id/queries" element={<ProtectedRoute><EventQueries /></ProtectedRoute>} />
             <Route path="/event/:id" element={<EventDetails />} />
             
             {/* Admin Routes */}
@@ -84,6 +86,11 @@ function App() {
             <Route path="/admin/organizers" element={
               <AdminRoute>
                 <AdminOrganizers />
+              </AdminRoute>
+            } />
+            <Route path="/admin/logs" element={
+              <AdminRoute>
+                <AdminLogs />
               </AdminRoute>
             } />
             <Route path="/admin/events" element={<AdminRoute><AdminPlaceholder title="Events" description="Moderate and manage all events published on the platform." /></AdminRoute>} />

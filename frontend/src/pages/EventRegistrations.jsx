@@ -12,6 +12,7 @@ import GeneratePassModal from '../components/GeneratePassModal';
 import QRScannerModal from '../components/QRScannerModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import HackathonHubTab from '../components/HackathonHubTab';
 
 export default function EventRegistrations() {
   const { id } = useParams();
@@ -22,6 +23,8 @@ export default function EventRegistrations() {
   const [event, setEvent] = useState(null);
   const [registrations, setRegistrations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('registrations');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,8 +51,15 @@ export default function EventRegistrations() {
         setRegistrations(prev => prev.map(r => r._id === updatedReg._id ? updatedReg : r));
       });
 
+      socket.on('registration_updated', (data) => {
+        if (data.eventId === id) {
+          setRefreshTrigger(prev => prev + 1);
+        }
+      });
+
       return () => {
         socket.off('attendance_updated');
+        socket.off('registration_updated');
       };
     }
   }, [socket, id]);
@@ -75,7 +85,7 @@ export default function EventRegistrations() {
     if (user) {
         fetchData();
     }
-  }, [id, user]);
+  }, [id, user, refreshTrigger]);
 
   const handleExportCSV = () => {
     if (registrations.length === 0) {
@@ -264,16 +274,47 @@ export default function EventRegistrations() {
                 >
                   <Download size={20} /> Export PDF
                 </button>
-                <div className="bg-white/20 px-5 py-3 rounded-xl font-bold flex items-center gap-2 text-lg">
-                  <Users size={20} />
-                  {registrations.length} / {event.capacity}
+                <div className="bg-white/20 px-5 py-2 rounded-xl flex items-center gap-4">
+                  <div className="flex flex-col border-r border-white/20 pr-4">
+                    <span className="text-[10px] text-blue-200 uppercase tracking-wider font-bold">Registered</span>
+                    <span className="text-lg font-black">{registrations.length}</span>
+                  </div>
+                  <div className="flex flex-col border-r border-white/20 pr-4">
+                    <span className="text-[10px] text-blue-200 uppercase tracking-wider font-bold">Total Seats</span>
+                    <span className="text-lg font-black">{event.capacity}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-blue-200 uppercase tracking-wider font-bold">Available</span>
+                    <span className={`text-lg font-black ${event.capacity - registrations.length <= 10 ? 'text-red-300' : 'text-green-300'}`}>
+                      {Math.max(0, event.capacity - registrations.length)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
+            {/* Tabs */}
+            {event.isHackathon && (
+              <div className="flex border-b border-gray-200 px-8 bg-gray-50">
+                <button 
+                  onClick={() => setActiveTab('registrations')}
+                  className={`py-4 px-6 font-bold text-sm border-b-2 transition-colors ${activeTab === 'registrations' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                  Registrations & Attendance
+                </button>
+                <button 
+                  onClick={() => setActiveTab('hackathon')}
+                  className={`py-4 px-6 font-bold text-sm border-b-2 transition-colors ${activeTab === 'hackathon' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                  Hackathon Hub
+                </button>
+              </div>
+            )}
+
             {/* Body */}
-            <div className="flex-1 p-8 bg-gray-50">
-              {registrations.length === 0 ? (
+            {activeTab === 'registrations' ? (
+              <div className="flex-1 p-8 bg-gray-50">
+                {registrations.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
                   <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Users className="text-gray-400" size={40} />
@@ -428,6 +469,9 @@ export default function EventRegistrations() {
                 </div>
               )}
             </div>
+            ) : (
+              <HackathonHubTab event={event} setEvent={setEvent} registrations={registrations} setRegistrations={setRegistrations} />
+            )}
           </div>
         )}
         <QRScannerModal 

@@ -77,7 +77,7 @@ export default function EditEventModal({ isOpen, onClose, event, onEventUpdated 
               <p className="text-blue-100 text-xs font-medium truncate max-w-[200px] md:max-w-md">{event.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/10 rounded-full transition-colors">
             <X size={24} />
           </button>
         </div>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
-import { Calendar as CalendarIcon, Users, MapPin, Clock, Edit3, Trash2, PlusCircle, Loader2, Users2, MessageSquare } from 'lucide-react';
+import { Calendar as CalendarIcon, Users, MapPin, Clock, Edit3, Trash2, PlusCircle, Loader2, Users2, MessageSquare, Bookmark, ChevronRight, Tag } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import EditEventModal from '../components/EditEventModal';
+import ManageCoordinatorsModal from '../components/ManageCoordinatorsModal';
 import { SidebarContext } from '../context/SidebarContext';
 
 export default function HostedEvents() {
@@ -15,6 +16,7 @@ export default function HostedEvents() {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEventForEdit, setSelectedEventForEdit] = useState(null);
+  const [selectedEventForCoordinators, setSelectedEventForCoordinators] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,10 +48,17 @@ export default function HostedEvents() {
 
   const handleEventUpdated = (updatedEvent) => {
     setEvents(events.map(e => e._id === updatedEvent._id ? updatedEvent : e));
+    
+    if (selectedEventForCoordinators && selectedEventForCoordinators._id === updatedEvent._id) {
+      setSelectedEventForCoordinators(updatedEvent);
+    }
+    if (selectedEventForEdit && selectedEventForEdit._id === updatedEvent._id) {
+      setSelectedEventForEdit(updatedEvent);
+    }
   };
 
   return (
-    <div className={`min-h-screen bg-gray-50 flex pt-20 transition-all duration-300 ${isOpen ? 'pl-64' : 'pl-[72px]'}`}>
+    <div className={`min-h-screen bg-gray-50 flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
       <Navbar />
       <Sidebar />
       <main className="flex-1 w-full p-6 lg:p-8 overflow-y-auto animate-fade-in-up">
@@ -91,74 +100,140 @@ export default function HostedEvents() {
             {events.map((event) => (
               <div key={event._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 overflow-hidden flex flex-col group hover:-translate-y-1">
                 {/* Image Section */}
-                <div className="h-48 relative overflow-hidden bg-gray-200">
+                <div className="h-48 relative overflow-hidden bg-gray-200 rounded-t-2xl">
                   <img 
                     src={event.image?.startsWith('/') ? `http://localhost:5000${event.image}` : event.image} 
                     alt={event.title} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60'; }}
                   />
-                  <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold text-gray-800 shadow-sm uppercase tracking-wider">
+                  <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold text-white border border-white/10 uppercase tracking-widest flex items-center gap-1.5 shadow-xl">
+                    <Tag size={12} />
                     {event.category}
                   </div>
-                  <div className="absolute top-4 right-4 bg-indigo-600 px-3 py-1 rounded-lg text-xs font-bold text-white shadow-md">
+                  <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-500 to-indigo-600 px-4 py-1.5 rounded-xl text-sm font-bold text-white shadow-lg">
                     {event.price === 0 ? 'FREE' : `₹${event.price}`}
                   </div>
                 </div>
 
                 {/* Content Section */}
-                <div className="p-6 flex-1 flex flex-col">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">{event.title}</h3>
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{event.description}</p>
+                <div className="p-6 flex-1 flex flex-col bg-white">
+                  <div className="flex justify-between items-start gap-4 mb-3">
+                    <h3 className="text-xl font-bold text-gray-900 leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2">{event.title}</h3>
+                    <button className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors border border-gray-100 shrink-0">
+                      <Bookmark size={20} />
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-6 line-clamp-2 leading-relaxed">{event.description}</p>
                   
-                  <div className="space-y-2 mt-auto mb-6">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
-                      <CalendarIcon size={16} className="text-indigo-500" />
-                      {new Date(event.date).toLocaleDateString()}
+                  <div className="space-y-2 mb-6">
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl">
+                          <CalendarIcon size={18} />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Date</p>
+                          <p className="text-sm font-bold text-gray-900">{new Date(event.date).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-orange-50 text-orange-500 rounded-xl">
+                          <Clock size={18} />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Time</p>
+                          <p className="text-sm font-bold text-gray-900">{event.time}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
-                      <Clock size={16} className="text-orange-500" />
-                      {event.time}
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50/80 rounded-xl border border-gray-100 group/venue hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="p-2.5 bg-green-50 text-green-600 rounded-xl shrink-0">
+                          <MapPin size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Venue</p>
+                          <p className="text-sm font-bold text-gray-900 truncate">{event.venue}</p>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400 group-hover/venue:text-gray-600 shrink-0" />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
-                      <MapPin size={16} className="text-green-500" />
-                      <span className="truncate">{event.venue}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 font-medium pt-2 border-t border-gray-50 mt-2">
-                      <Users size={16} className="text-blue-500" />
-                      {event.capacity} Capacity
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50/80 rounded-xl border border-gray-100 group/cap hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-blue-50 text-blue-500 rounded-xl shrink-0">
+                          <Users size={18} />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Capacity</p>
+                          <p className="text-sm font-bold text-gray-900">{event.capacity} Capacity</p>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400 group-hover/cap:text-gray-600 shrink-0" />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-3">
+                  <div className="mt-auto">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
                       <button 
                         onClick={() => navigate(`/hosted-events/${event._id}/registrations`)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-sm rounded-xl transition-colors border border-blue-100/50"
+                        className="flex items-center justify-between px-4 py-3.5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all"
                       >
-                        <Users2 size={18} /> Registrations
+                        <div className="flex items-center gap-2">
+                          <Users2 size={18} />
+                          <span>Registrations</span>
+                        </div>
+                        <ChevronRight size={16} className="opacity-80" />
                       </button>
                       <button 
                         onClick={() => navigate(`/hosted-events/${event._id}/queries`)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold text-sm rounded-xl transition-colors border border-purple-100/50"
+                        className="flex items-center justify-between px-4 py-3.5 bg-purple-50 text-purple-700 font-bold text-sm rounded-xl hover:bg-purple-100 transition-colors border border-purple-100"
                       >
-                        <MessageSquare size={18} /> Live Queries
+                        <div className="flex items-center gap-2">
+                          <MessageSquare size={18} />
+                          <span>Live Queries</span>
+                        </div>
+                        <ChevronRight size={16} className="opacity-80" />
                       </button>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => setSelectedEventForEdit(event)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-sm rounded-xl transition-colors"
-                      >
-                        <Edit3 size={16} /> Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(event._id)}
-                        className="flex items-center justify-center gap-2 px-4 py-2 text-red-500 hover:bg-red-50 hover:text-red-600 font-bold text-sm rounded-xl transition-colors border border-transparent hover:border-red-100"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    <div className="flex items-center justify-between gap-3">
+                      {event.organizerId === user._id || event.organizerId?._id === user._id ? (
+                        <>
+                          <button 
+                            onClick={() => setSelectedEventForCoordinators(event)}
+                            className="flex-1 flex items-center justify-between px-4 py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-sm rounded-xl transition-colors border border-emerald-100"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Users size={18} />
+                              <span>Manage Volunteers</span>
+                            </div>
+                            <ChevronRight size={16} className="opacity-80" />
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setSelectedEventForEdit(event)}
+                              className="p-3 text-gray-400 hover:text-indigo-600 bg-white border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 rounded-xl transition-colors shadow-sm"
+                              title="Edit Event"
+                            >
+                              <Edit3 size={20} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(event._id)}
+                              className="p-3 text-red-400 hover:text-red-600 bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-colors shadow-sm"
+                              title="Delete Event"
+                            >
+                              <Trash2 size={20} />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full text-center py-3 text-sm font-bold text-emerald-600 bg-emerald-50 rounded-xl border border-emerald-100">
+                          Assigned as Coordinator
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -172,6 +247,13 @@ export default function HostedEvents() {
         isOpen={!!selectedEventForEdit}
         onClose={() => setSelectedEventForEdit(null)}
         event={selectedEventForEdit}
+        onEventUpdated={handleEventUpdated}
+      />
+
+      <ManageCoordinatorsModal
+        isOpen={!!selectedEventForCoordinators}
+        onClose={() => setSelectedEventForCoordinators(null)}
+        event={selectedEventForCoordinators}
         onEventUpdated={handleEventUpdated}
       />
     </div>
