@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Calendar, Clock, MapPin, Users, Loader2, ArrowLeft, CheckCircle2, Ticket, MessageSquare, Send, ThumbsUp, ChevronDown, ChevronUp, AlertCircle, Check, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Loader2, ArrowLeft, CheckCircle2, Ticket, MessageSquare, Send, ThumbsUp, ChevronDown, ChevronUp, AlertCircle, Check, X, Megaphone } from 'lucide-react';
 import RegistrationModal from '../components/RegistrationModal';
 import GeneratePassModal from '../components/GeneratePassModal';
 import { AuthContext } from '../context/AuthContext';
@@ -52,6 +52,27 @@ export default function EventDetails() {
       if (data.eventId === id) {
         setRefreshTrigger(prev => prev + 1);
       }
+    });
+
+    newSocket.on('new_announcement', (announcement) => {
+      setEvent(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          announcements: [...(prev.announcements || []), announcement]
+        };
+      });
+      toast.success(`New Announcement: ${announcement.message}`);
+    });
+
+    newSocket.on('delete_announcement', (announcementId) => {
+      setEvent(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          announcements: (prev.announcements || []).filter(a => a._id !== announcementId)
+        };
+      });
     });
 
     return () => newSocket.close();
@@ -241,6 +262,40 @@ export default function EventDetails() {
             
             {/* Main Details (Left) */}
             <div className="lg:col-span-2 space-y-10">
+              
+              {/* Announcements / Broadcast Section */}
+              {event.announcements && event.announcements.length > 0 && (
+                <section className="animate-fade-in-up">
+                  <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
+                    <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-3">
+                      <Megaphone className="text-indigo-600" size={24} /> 
+                      Live Announcements
+                    </h2>
+                    <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold border border-indigo-100">
+                      {event.announcements.length} {event.announcements.length === 1 ? 'Update' : 'Updates'}
+                    </span>
+                  </div>
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-3 custom-scrollbar">
+                    {event.announcements.slice().reverse().map((announcement, index) => (
+                      <div key={index} className="bg-indigo-50/40 rounded-2xl p-6 border border-indigo-100/60 flex gap-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 rounded-l-2xl group-hover:bg-indigo-600 transition-colors"></div>
+                        <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600 flex-shrink-0 border border-indigo-50/50">
+                          <Megaphone size={20} className="group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2 text-xs text-indigo-400 font-bold">
+                            <span className="uppercase tracking-widest bg-indigo-100/50 text-indigo-700 px-2.5 py-1 rounded-md border border-indigo-200/30">Broadcast</span>
+                            <span className="text-gray-400">•</span>
+                            <span className="flex items-center gap-1.5 text-gray-500 bg-white px-2.5 py-1 rounded-md border border-gray-100"><Clock size={12} /> {new Date(announcement.date || new Date()).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <p className="text-gray-800 text-[15px] leading-relaxed font-medium">{announcement.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               <section>
                 <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b border-gray-100 pb-2">About This Event</h2>
                 <p className="text-gray-600 text-lg leading-relaxed whitespace-pre-wrap">
@@ -262,72 +317,84 @@ export default function EventDetails() {
                   </div>
                 </section>
               )}
-
               {/* Live Q&A Section */}
-              <section className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm mt-10">
-                <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
-                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                    <MessageSquare size={20} />
+              <section className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-xl mt-12 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2"></div>
+                <div className="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6 relative">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                    <MessageSquare size={24} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">Live Q&A</h3>
-                    <p className="text-sm text-gray-500">Ask the organizer anything about this event.</p>
+                    <h3 className="text-2xl font-black text-gray-900">Live Q&A</h3>
+                    <p className="text-sm text-gray-500 font-medium mt-1">Direct channel to the event organizer.</p>
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-5 mb-8 max-h-[500px] overflow-y-auto pr-3 custom-scrollbar">
                   {queries.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400 font-medium bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                      No questions yet. Be the first to ask!
+                    <div className="text-center py-12 text-gray-400 font-medium bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100">
+                      <MessageSquare className="mx-auto mb-3 opacity-20" size={32} />
+                      No questions yet. Drop one below!
                     </div>
                   ) : (
                     queries.map(q => (
-                      <div key={q._id} className={`p-4 rounded-xl border ${q.isResolved ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="font-bold text-gray-900 text-sm">{q.user.name}</span>
+                      <div key={q._id} className={`p-5 rounded-2xl border transition-all ${q.isResolved ? 'bg-gray-50/50 border-gray-100' : 'bg-white border-gray-200 shadow-sm hover:shadow-md'}`}>
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs">
+                              {q.user.name.charAt(0)}
+                            </div>
+                            <span className="font-bold text-gray-900">{q.user.name}</span>
+                          </div>
                           {q.isResolved ? (
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-200/50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-md flex items-center gap-1.5 border border-emerald-200/50">
                               <CheckCircle2 size={12} /> Resolved
                             </span>
                           ) : (
-                            <span className="text-[10px] text-gray-400">{new Date(q.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">{new Date(q.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           )}
                         </div>
-                        <p className={`text-gray-700 ${q.isResolved ? 'opacity-70' : ''}`}>{q.text}</p>
+                        <p className={`text-gray-800 text-[15px] font-medium pl-10 ${q.isResolved ? 'opacity-60 line-through decoration-gray-300' : ''}`}>{q.text}</p>
                         
                         {q.replies && q.replies.length > 0 && (
-                          <div className="mt-4 space-y-3">
+                          <div className="mt-5 space-y-4 pl-4 border-l-2 border-gray-100 ml-4">
                             {q.replies.map((msg, index) => (
-                              <div key={index} className={`p-3 rounded-lg border shadow-sm relative ${msg.sender === 'organizer' ? 'bg-indigo-50/50 border-indigo-100 ml-4' : 'bg-white border-gray-100 mr-4'}`}>
-                                <div className={`flex items-center gap-1.5 mb-1 ${msg.sender === 'organizer' ? 'text-indigo-700' : 'text-gray-700'}`}>
-                                  <span className="text-xs font-black uppercase tracking-wider">{msg.sender === 'organizer' ? 'Organizer' : 'You'}</span>
-                                  <span className="text-[10px] text-gray-400 font-medium ml-auto">{new Date(msg.createdAt).toLocaleString()}</span>
+                              <div key={index} className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-sm ${msg.sender === 'organizer' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                                    {msg.sender === 'organizer' ? 'Organizer' : 'You'}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 font-medium">{new Date(msg.createdAt).toLocaleString(undefined, {hour: '2-digit', minute: '2-digit'})}</span>
                                 </div>
-                                <p className={`text-sm ${msg.sender === 'organizer' ? 'text-indigo-900' : 'text-gray-800'}`}>{msg.text}</p>
+                                <div className={`p-3.5 rounded-2xl max-w-[90%] ${msg.sender === 'organizer' ? 'bg-indigo-50/70 border border-indigo-100 text-indigo-900 rounded-tl-sm' : 'bg-gray-100 border border-gray-200 text-gray-800 rounded-tr-sm ml-auto'}`}>
+                                  <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
+                                </div>
                               </div>
                             ))}
                           </div>
                         )}
 
                         {!q.isResolved && user && user._id === q.user.id && (
-                          <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4">
-                            <input
-                              type="text"
-                              placeholder="Type a reply to the organizer..."
-                              className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleAttendeeReply(q._id, e.target.value);
-                                  e.target.value = '';
-                                }
-                              }}
-                            />
+                          <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-5">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                placeholder="Reply to this thread..."
+                                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && e.target.value.trim()) {
+                                    handleAttendeeReply(q._id, e.target.value);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                            </div>
                             <div className="flex justify-end">
                               <button 
                                 onClick={() => handleResolveQuery(q._id)}
-                                className="text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors"
+                                className="text-xs font-bold text-gray-500 hover:text-emerald-600 bg-gray-100 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 px-4 py-2 rounded-lg transition-all flex items-center gap-1.5"
                               >
-                                Mark as Resolved
+                                <Check size={14} /> Close Thread
                               </button>
                             </div>
                           </div>
@@ -338,24 +405,26 @@ export default function EventDetails() {
                 </div>
 
                 {user ? (
-                  <form onSubmit={handleSendQuery} className="relative">
-                    <input 
-                      type="text" 
-                      value={newQueryText}
-                      onChange={(e) => setNewQueryText(e.target.value)}
-                      placeholder="Type your question..." 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 pl-4 pr-12 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                    />
-                    <button 
-                      type="submit" 
-                      disabled={!newQueryText.trim()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
-                    >
-                      <Send size={14} />
-                    </button>
+                  <form onSubmit={handleSendQuery} className="relative mt-2">
+                    <div className="relative group">
+                      <input 
+                        type="text" 
+                        value={newQueryText}
+                        onChange={(e) => setNewQueryText(e.target.value)}
+                        placeholder="Start a new question thread..." 
+                        className="w-full bg-white border-2 border-gray-200 rounded-2xl py-4 pl-5 pr-14 text-gray-900 font-medium placeholder:text-gray-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm"
+                      />
+                      <button 
+                        type="submit" 
+                        disabled={!newQueryText.trim()}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-xl flex items-center justify-center text-white shadow-md active:scale-95 transition-all"
+                      >
+                        <Send size={18} className={newQueryText.trim() ? "translate-x-[-1px] translate-y-[1px]" : ""} />
+                      </button>
+                    </div>
                   </form>
                 ) : (
-                  <div className="text-center py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-medium text-gray-500">
+                  <div className="text-center py-4 bg-gray-50 rounded-2xl border border-gray-200 text-sm font-bold text-gray-500 shadow-inner mt-2">
                     Please log in to ask a question.
                   </div>
                 )}

@@ -29,14 +29,14 @@ export default function AboutUs() {
         {/* Image Grid */}
         <div className="max-w-6xl mx-auto px-4 mb-24 hidden md:block">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:h-[400px]">
-            <div className="col-span-2 rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 relative">
+            <div className="col-span-2 rounded-3xl overflow-hidden bg-gray-100 relative shadow-lg group">
               <div className="absolute inset-0 flex items-center justify-center">
-                <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80" alt="Students" className="w-full h-full object-cover opacity-80 mix-blend-overlay" />
+                <img src="/images/about_hero_1.png" alt="Campus Tech Event" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" />
               </div>
             </div>
-            <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-blue-100 to-cyan-100 relative">
+            <div className="rounded-3xl overflow-hidden bg-gray-100 relative shadow-lg group">
                <div className="absolute inset-0 flex items-center justify-center">
-                <img src="https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&q=80" alt="Campus" className="w-full h-full object-cover opacity-80 mix-blend-overlay" />
+                <img src="/images/about_hero_2.png" alt="Students Collaborating" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" />
               </div>
             </div>
           </div>

@@ -174,20 +174,43 @@ const broadcastMessage = async (req, res) => {
                 req.io.to(reg.userId._id.toString()).emit('new_notification', notif);
             }
 
-            // Send Email Blast
-            try {
-                const userEmail = reg.email;
-                if (userEmail) {
-                    await sendBroadcastEmail(userEmail, event.title, message);
-                }
-            } catch (err) {
-                console.error('Failed to send broadcast email to', reg.email);
-            }
-            
+            // Email Broadcast removed as per user request to use system notifications only
             count++;
         }
 
         res.json({ message: `Broadcast sent to ${count} attendees successfully.` });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Delete a broadcast announcement
+// @route   DELETE /api/events/:id/broadcast/:announcementId
+// @access  Private (Organizer only)
+const deleteBroadcast = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        const isOrganizer = event.organizerId.toString() === req.user._id.toString();
+        const isCoordinator = event.coordinators && event.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+        
+        if (!isOrganizer && !isCoordinator) {
+            return res.status(401).json({ message: 'User not authorized to manage broadcasts for this event' });
+        }
+
+        // Filter out the announcement
+        event.announcements = event.announcements.filter(a => a._id.toString() !== req.params.announcementId);
+        await event.save();
+
+        // Broadcast to all users currently viewing the event page
+        if (req.io) {
+            req.io.to(req.params.id.toString()).emit('delete_announcement', req.params.announcementId);
+        }
+
+        res.json({ message: 'Broadcast announcement deleted successfully', announcements: event.announcements });
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
@@ -326,6 +349,7 @@ module.exports = {
     updateEvent,
     deleteEvent,
     broadcastMessage,
+    deleteBroadcast,
     rateEvent,
     addCoordinator,
     removeCoordinator

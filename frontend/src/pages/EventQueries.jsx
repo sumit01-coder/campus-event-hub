@@ -95,6 +95,20 @@ export default function EventQueries() {
     }
   };
 
+  const handleDeleteBroadcast = async (announcementId) => {
+    if (!window.confirm('Are you sure you want to delete this broadcast?')) return;
+    try {
+      await api.delete(`/events/${id}/broadcast/${announcementId}`);
+      toast.success('Broadcast deleted successfully');
+      setEvent(prev => ({
+        ...prev,
+        announcements: prev.announcements.filter(a => a._id !== announcementId)
+      }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete broadcast');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
@@ -158,25 +172,45 @@ export default function EventQueries() {
 
             {/* Broadcast History Section */}
             {event?.announcements && event.announcements.length > 0 && (
-              <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm mb-8">
-                <div className="flex items-center gap-2 mb-6">
-                  <Megaphone size={20} className="text-indigo-600" />
-                  <h2 className="text-xl font-bold text-gray-900">Broadcast History</h2>
+              <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-xl mb-12 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shadow-inner">
+                      <Megaphone size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-gray-900">Broadcast History</h2>
+                      <p className="text-sm font-medium text-gray-500">Manage your past announcements to attendees</p>
+                    </div>
+                  </div>
+                  <div className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 text-indigo-700 font-bold text-sm">
+                    {event.announcements.length} {event.announcements.length === 1 ? 'Message' : 'Messages'}
+                  </div>
                 </div>
-                <div className="space-y-4">
-                  {event.announcements.map((announcement, index) => (
-                    <div key={index} className="bg-indigo-50/50 rounded-xl p-5 border border-indigo-100 flex gap-4">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
-                        <Megaphone size={16} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1 text-xs text-gray-500 font-medium">
-                          <span className="font-bold text-indigo-700 uppercase tracking-wider">Announcement</span>
-                          <span>•</span>
-                          <Clock size={12} /> {new Date(announcement.date).toLocaleString()}
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-3 custom-scrollbar">
+                  {event.announcements.slice().reverse().map((announcement, index) => (
+                    <div key={announcement._id || index} className="group bg-gray-50 hover:bg-white hover:shadow-lg rounded-2xl p-5 border border-gray-100 transition-all duration-300 flex justify-between items-start gap-4">
+                      <div className="flex gap-4 items-start flex-1">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center text-indigo-700 flex-shrink-0 shadow-sm">
+                          <Megaphone size={18} />
                         </div>
-                        <p className="text-gray-800 text-sm">{announcement.message}</p>
+                        <div className="flex-1 pt-1">
+                          <div className="flex items-center gap-2 mb-2 text-xs font-bold">
+                            <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-widest border border-indigo-100">Live Announcement</span>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-gray-400 flex items-center gap-1"><Clock size={12} /> {new Date(announcement.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <p className="text-gray-800 text-base leading-relaxed font-medium">{announcement.message}</p>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => handleDeleteBroadcast(announcement._id)}
+                        className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-xl transition-all opacity-0 group-hover:opacity-100 shadow-sm border border-transparent hover:border-red-100"
+                        title="Delete Broadcast"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                      </button>
                     </div>
                   ))}
                 </div>
