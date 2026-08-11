@@ -37,6 +37,26 @@ export default function EventRegistrations() {
   const [showScanner, setShowScanner] = useState(false);
   const [socket, setSocket] = useState(null);
 
+  const handleApprovePayment = async (regId) => {
+    try {
+      await api.put(`/registrations/${regId}/approve-payment`);
+      toast.success('Payment approved successfully');
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve payment');
+    }
+  };
+
+  const handleRejectPayment = async (regId) => {
+    try {
+      await api.put(`/registrations/${regId}/reject-payment`);
+      toast.success('Payment rejected successfully');
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject payment');
+    }
+  };
+
   useEffect(() => {
     const userObj = JSON.parse(localStorage.getItem('user'));
     const token = userObj?.token || '';
@@ -298,22 +318,35 @@ export default function EventRegistrations() {
             </div>
 
             {/* Tabs */}
-            {event.isHackathon && (
-              <div className="flex border-b border-gray-200 px-8 bg-gray-50">
+            <div className="flex border-b border-gray-200 px-8 bg-gray-50 flex-wrap">
+              <button 
+                onClick={() => setActiveTab('registrations')}
+                className={`py-4 px-6 font-bold text-sm border-b-2 transition-colors ${activeTab === 'registrations' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Registrations & Attendance
+              </button>
+              {event.isPaid && event.price > 0 && (
                 <button 
-                  onClick={() => setActiveTab('registrations')}
-                  className={`py-4 px-6 font-bold text-sm border-b-2 transition-colors ${activeTab === 'registrations' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                  onClick={() => setActiveTab('pending_payments')}
+                  className={`py-4 px-6 font-bold text-sm border-b-2 transition-colors ${activeTab === 'pending_payments' ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                 >
-                  Registrations & Attendance
+                  Pending Payments
+                  {registrations.filter(r => r.paymentStatus === 'pending_verification').length > 0 && (
+                    <span className="ml-2 bg-orange-100 text-orange-600 py-0.5 px-2 rounded-full text-xs">
+                      {registrations.filter(r => r.paymentStatus === 'pending_verification').length}
+                    </span>
+                  )}
                 </button>
+              )}
+              {event.isHackathon && (
                 <button 
                   onClick={() => setActiveTab('hackathon')}
                   className={`py-4 px-6 font-bold text-sm border-b-2 transition-colors ${activeTab === 'hackathon' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                 >
                   Hackathon Hub
                 </button>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Body */}
             {activeTab === 'registrations' ? (
@@ -403,10 +436,12 @@ export default function EventRegistrations() {
                             </td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                                reg.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                (reg.paymentStatus === 'paid' || reg.paymentStatus === 'verified') ? 'bg-green-100 text-green-700' : 
+                                reg.paymentStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'
                               }`}>
-                                {reg.paymentStatus === 'paid' ? <CheckCircle2 size={14}/> : null}
-                                {reg.paymentStatus.toUpperCase()}
+                                {(reg.paymentStatus === 'paid' || reg.paymentStatus === 'verified') ? <CheckCircle2 size={14}/> : null}
+                                {reg.paymentStatus === 'verified' ? 'PAID' : reg.paymentStatus.toUpperCase().replace('_', ' ')}
                               </span>
                             </td>
                             <td className="px-6 py-4">
@@ -449,10 +484,10 @@ export default function EventRegistrations() {
                             <button
                               key={page}
                               onClick={() => setCurrentPage(page)}
-                              className={`w-10 h-10 rounded-xl font-bold flex items-center justify-center transition-colors ${
+                              className={`w-10 h-10 rounded-xl font-bold transition-colors ${
                                 currentPage === page 
                                   ? 'bg-indigo-600 text-white shadow-md' 
-                                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:text-indigo-600'
+                                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                               }`}
                             >
                               {page}
@@ -462,7 +497,7 @@ export default function EventRegistrations() {
 
                         <button 
                           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                          disabled={currentPage === totalPages}
+                          disabled={currentPage === totalPages || totalPages === 0}
                           className="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           <ChevronRight size={20} />
@@ -472,10 +507,63 @@ export default function EventRegistrations() {
                   )}
                 </div>
               )}
-            </div>
-            ) : (
+              </div>
+            ) : activeTab === 'pending_payments' ? (
+              <div className="flex-1 p-8 bg-gray-50">
+                {registrations.filter(r => r.paymentStatus === 'pending_verification').length === 0 ? (
+                  <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
+                    <div className="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle2 className="text-orange-400" size={40} />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-800 mb-2">No Pending Payments</h3>
+                    <p className="text-gray-500 text-lg">All uploaded payment proofs have been verified.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {registrations.filter(r => r.paymentStatus === 'pending_verification').map(reg => (
+                      <div key={reg._id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col gap-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-lg text-gray-900">{reg.participantName}</h4>
+                            <p className="text-sm text-gray-500">{reg.email}</p>
+                            <p className="text-xs text-indigo-600 font-bold mt-1 uppercase tracking-wider">{reg.participationType}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-500 font-bold">To Pay</p>
+                            <p className="text-xl font-black text-gray-900">₹{event.price * (reg.participationType === 'group' ? reg.teamSize : 1)}</p>
+                          </div>
+                        </div>
+
+                        <div className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50 flex items-center justify-center min-h-[200px] p-2">
+                          {reg.paymentProof ? (
+                            <img src={reg.paymentProof} alt="Payment Proof" className="max-w-full max-h-[300px] object-contain rounded-lg shadow-sm" />
+                          ) : (
+                            <p className="text-gray-400 font-medium text-sm">No proof uploaded</p>
+                          )}
+                        </div>
+
+                        <div className="flex gap-3 mt-auto">
+                          <button 
+                            onClick={() => handleRejectPayment(reg._id)}
+                            className="flex-1 py-2.5 rounded-xl border-2 border-red-100 text-red-600 font-bold hover:bg-red-50 transition-colors"
+                          >
+                            Reject
+                          </button>
+                          <button 
+                            onClick={() => handleApprovePayment(reg._id)}
+                            className="flex-1 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold transition-colors shadow-sm"
+                          >
+                            Approve
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'hackathon' ? (
               <HackathonHubTab event={event} setEvent={setEvent} registrations={registrations} setRegistrations={setRegistrations} />
-            )}
+            ) : null}
           </div>
         )}
         <QRScannerModal 

@@ -7,19 +7,23 @@ import {
   User, Bell, Shield, AlertTriangle, 
   Settings as SettingsIcon, Globe, 
   Smartphone, Mail, Lock, Key, Trash2, 
-  CreditCard, FileText, CheckCircle, ExternalLink, Download
+  CreditCard, FileText, CheckCircle, ExternalLink, Download,
+  X, Building, MapPin, Briefcase
 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, updateUser } = useContext(AuthContext);
   const { isOpen } = useContext(SidebarContext);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('account');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [upiId, setUpiId] = useState(user?.paymentConfig?.upiId || '');
+  const [qrCodeUrl, setQrCodeUrl] = useState(user?.paymentConfig?.qrCode || '');
   
   const handleDeleteAccount = async () => {
     if (!deletePassword) {
@@ -64,6 +68,45 @@ export default function Settings() {
         [channel]: !prev[type][channel]
       }
     }));
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append('image', file);
+
+    setIsUploading(true);
+    try {
+      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
+      const { data } = await api.post('/upload', uploadData, config);
+      
+      const newQrUrl = `http://localhost:5000${data.imageUrl}`;
+      setQrCodeUrl(newQrUrl);
+      toast.success('QR Code uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload QR Code');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSavePaymentConfig = async () => {
+    try {
+      if (!qrCodeUrl || !upiId) {
+        toast.error('Both QR Code and UPI ID are required');
+        return;
+      }
+      const res = await api.put('/users/profile', {
+        paymentConfig: { qrCode: qrCodeUrl, upiId: upiId }
+      });
+      updateUser(res.data);
+      toast.success('Payment settings saved successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save payment settings');
+    }
   };
 
   const tabs = [
@@ -215,96 +258,69 @@ export default function Settings() {
                 <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 animate-fade-in-up">
                   <h3 className="text-xl font-bold text-gray-900 mb-6">Payment Settings</h3>
                   
-                  {/* Summary Cards */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-                      <CreditCard size={24} className="text-blue-500 mb-2" />
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Saved Methods</span>
-                      <span className="text-xl font-extrabold text-gray-900 mt-1">{user.savedMethods?.length || 0}</span>
-                    </div>
-                    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-                      <FileText size={24} className="text-green-500 mb-2" />
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Event Purchases</span>
-                      <span className="text-xl font-extrabold text-gray-900 mt-1">{user.paymentHistory?.length || 0}</span>
-                    </div>
-                    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-                      <CheckCircle size={24} className="text-indigo-500 mb-2" />
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Spent</span>
-                      <span className="text-xl font-extrabold text-gray-900 mt-1">₹{user.totalSpent || 0}</span>
-                    </div>
-                    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-                      <AlertTriangle size={24} className="text-orange-500 mb-2" />
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Refunds</span>
-                      <span className="text-xl font-extrabold text-gray-900 mt-1">{user.refunds?.length || 0}</span>
-                    </div>
-                  </div>
-
-                  {/* Payment History List */}
-                  <div className="mb-6">
-                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Payment History</h4>
-                    
-                    <div className="space-y-4">
-                      {user.paymentHistory && user.paymentHistory.length > 0 ? (
-                        user.paymentHistory.map((payment, idx) => (
-                          <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex items-center gap-4 mb-4 sm:mb-0">
-                              <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center shrink-0 border border-green-100">
-                                <CheckCircle size={24} className="text-green-600" />
-                              </div>
-                              <div>
-                                <h4 className="text-base font-extrabold text-gray-900">{payment.title}</h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded uppercase">{payment.status}</span>
-                                  <span className="text-xs text-gray-500 font-medium">{new Date(payment.date).toLocaleDateString()}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4 sm:gap-2">
-                              <span className="text-xl font-extrabold text-gray-900">₹{payment.amount}</span>
-                              <button className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
-                                <Download size={14} /> View Receipt
-                              </button>
-                            </div>
+                  {/* Organizer Payment Onboarding (Shown only to organizers) */}
+                  {user.capabilities?.organizer && (
+                    <div className="mb-8 p-6 rounded-2xl border-2 border-indigo-100 bg-indigo-50/30">
+                      <div className="flex flex-col gap-6">
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-inner bg-indigo-100 text-indigo-600">
+                            <CreditCard size={24} />
                           </div>
-                        ))
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-10 bg-gray-50 border border-gray-100 border-dashed rounded-2xl">
-                          <FileText size={48} className="text-gray-300 mb-3" />
-                          <p className="text-sm font-bold text-gray-500">No payment history available.</p>
+                          <div>
+                            <h4 className="text-lg font-bold text-gray-900">Manual Payment Verification (UPI)</h4>
+                            <p className="text-sm text-gray-600 mt-1">Upload your UPI QR code and enter your UPI ID to receive payments directly from students. You will need to manually verify their payment proofs.</p>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Saved Payment Methods */}
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Saved Payment Methods</h4>
-                    {user.savedMethods && user.savedMethods.length > 0 ? (
-                      <div className="space-y-3">
-                        {user.savedMethods.map((method, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-xl border border-gray-200">
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">UPI ID</label>
+                            <input 
+                              type="text" 
+                              value={upiId}
+                              onChange={(e) => setUpiId(e.target.value)}
+                              placeholder="e.g. john@okicici"
+                              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Payment QR Code</label>
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-8 bg-blue-900 rounded relative overflow-hidden flex items-center justify-center shadow-sm">
-                                <span className="text-white font-extrabold italic text-xs">{method.brand}</span>
-                              </div>
-                              <div>
-                                <p className="text-sm font-bold text-gray-900">•••• •••• •••• {method.last4}</p>
-                                <p className="text-xs text-gray-500">Expires {method.expMonth}/{method.expYear}</p>
+                              {qrCodeUrl ? (
+                                <img src={qrCodeUrl} alt="QR Code" className="w-24 h-24 object-contain border border-gray-200 rounded-lg p-1 bg-white" />
+                              ) : (
+                                <div className="w-24 h-24 border border-dashed border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+                                  <FileText size={24} />
+                                </div>
+                              )}
+                              <div className="relative overflow-hidden inline-block">
+                                <button className="px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 font-bold text-sm rounded-lg hover:bg-indigo-100 transition-colors">
+                                  {isUploading ? 'Uploading...' : 'Upload Image'}
+                                </button>
+                                <input 
+                                  type="file" 
+                                  accept="image/*"
+                                  onChange={handleImageUpload}
+                                  disabled={isUploading}
+                                  className="absolute left-0 top-0 w-full h-full opacity-0 cursor-pointer"
+                                />
                               </div>
                             </div>
-                            <button className="text-xs font-bold text-red-500 hover:text-red-700 px-3 py-1 rounded hover:bg-red-50 transition-colors">
-                              Remove
-                            </button>
                           </div>
-                        ))}
+                        </div>
+
+                        <div className="flex justify-end mt-2">
+                          <button 
+                            onClick={handleSavePaymentConfig}
+                            className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-sm"
+                          >
+                            Save Payment Details
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-8 bg-gray-50 border border-gray-100 border-dashed rounded-2xl">
-                        <CreditCard size={40} className="text-gray-300 mb-3" />
-                        <p className="text-sm font-bold text-gray-500">No saved payment methods available.</p>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                 </div>
               )}
@@ -401,6 +417,8 @@ export default function Settings() {
             </div>
           </div>
         </main>
+
+
     </div>
   );
 }

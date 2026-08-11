@@ -14,24 +14,34 @@ export default function HostedEvents() {
   const { user } = useContext(AuthContext);
   const { isOpen } = useContext(SidebarContext);
   const [events, setEvents] = useState([]);
+  const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEventForEdit, setSelectedEventForEdit] = useState(null);
   const [selectedEventForCoordinators, setSelectedEventForCoordinators] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchMyEvents = async () => {
+    const fetchData = async () => {
       try {
         if (!user?._id) return;
-        const { data } = await api.get(`/events?organizerId=${user._id}`);
-        setEvents(data);
+        
+        // Fetch events and stats in parallel
+        const [eventsRes, statsRes] = await Promise.all([
+          api.get(`/events?organizerId=${user._id}`),
+          api.get('/payments/organizer/stats').catch(() => ({ data: null }))
+        ]);
+        
+        setEvents(eventsRes.data);
+        if (statsRes && statsRes.data) {
+          setStats(statsRes.data);
+        }
       } catch (error) {
-        toast.error('Failed to load your hosted events.');
+        toast.error('Failed to load your dashboard data.');
       } finally {
         setIsLoading(false);
       }
     };
-    fetchMyEvents();
+    fetchData();
   }, [user]);
 
   const handleDelete = async (eventId) => {
@@ -76,6 +86,28 @@ export default function HostedEvents() {
             Create New Event
           </button>
         </header>
+
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <p className="text-gray-500 font-medium mb-1">Gross Revenue</p>
+              <h3 className="text-3xl font-extrabold text-gray-900">₹{stats.totalGrossRevenue.toLocaleString()}</h3>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <p className="text-gray-500 font-medium mb-1">Successful Payments</p>
+              <h3 className="text-3xl font-extrabold text-green-600">{stats.successfulPayments}</h3>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <p className="text-gray-500 font-medium mb-1">Completed Transfers</p>
+              <h3 className="text-3xl font-extrabold text-indigo-600">{stats.completedTransfers}</h3>
+              <p className="text-sm text-gray-400 mt-1">{stats.pendingTransfers} pending</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <p className="text-gray-500 font-medium mb-1">Refunds</p>
+              <h3 className="text-3xl font-extrabold text-red-600">{stats.refunds}</h3>
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
@@ -208,7 +240,7 @@ export default function HostedEvents() {
                           >
                             <div className="flex items-center gap-2">
                               <Users size={18} />
-                              <span>Manage Volunteers</span>
+                              <span>Manage Volunteers & Student Coordinators</span>
                             </div>
                             <ChevronRight size={16} className="opacity-80" />
                           </button>
@@ -231,7 +263,7 @@ export default function HostedEvents() {
                         </>
                       ) : (
                         <div className="w-full text-center py-3 text-sm font-bold text-emerald-600 bg-emerald-50 rounded-xl border border-emerald-100">
-                          Assigned as Coordinator
+                          Assigned as Volunteer & Student Coordinator
                         </div>
                       )}
                     </div>

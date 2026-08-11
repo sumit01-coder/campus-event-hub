@@ -25,11 +25,16 @@ const getEvents = async (req, res) => {
 // @access  Private (Organizer)
 const createEvent = async (req, res) => {
     try {
-        const { title, description, date, time, venue, image, category, price, capacity } = req.body;
+        const { 
+            title, description, date, time, venue, image, category, price, capacity,
+            participationType, maxGroupSize, registrationDeadline, isHackathon 
+        } = req.body;
 
         if (!title || !description || !date || !time || !venue || !image || !category || !capacity) {
             return res.status(400).json({ message: 'Please add all required fields' });
         }
+
+        const numericPrice = parseFloat(price) || 0;
 
         const event = await Event.create({
             title,
@@ -39,8 +44,13 @@ const createEvent = async (req, res) => {
             venue,
             image,
             category,
-            price: price || 0,
+            price: numericPrice,
+            isPaid: numericPrice > 0,
             capacity,
+            participationType: participationType || 'individual',
+            maxGroupSize: maxGroupSize || 1,
+            registrationDeadline,
+            isHackathon: isHackathon || false,
             organizerId: req.user._id // Attached by auth middleware
         });
 
@@ -55,7 +65,7 @@ const createEvent = async (req, res) => {
 // @access  Public
 const getEventById = async (req, res) => {
     try {
-        const event = await Event.findById(req.params.id).populate('organizerId', 'name email profile organizerProfile');
+        const event = await Event.findById(req.params.id).populate('organizerId', 'name email profile organizerProfile paymentConfig');
         if (!event) {
             return res.status(404).json({ message: 'Event not found' });
         }
@@ -86,6 +96,12 @@ const updateEvent = async (req, res) => {
         // Make sure user owns the event
         if (event.organizerId.toString() !== req.user._id.toString()) {
             return res.status(401).json({ message: 'User not authorized to update this event' });
+        }
+
+        if (req.body.price !== undefined) {
+            const numericPrice = parseFloat(req.body.price) || 0;
+            req.body.price = numericPrice;
+            req.body.isPaid = numericPrice > 0;
         }
 
         const updatedEvent = await Event.findByIdAndUpdate(
@@ -329,6 +345,13 @@ const addCoordinator = async (req, res) => {
         const alreadyExists = event.coordinators.some(c => c.userId.toString() === userToAdd._id.toString());
         if (alreadyExists) {
             return res.status(400).json({ message: 'User is already a coordinator for this event' });
+        }
+
+        // Check if user is already registered as a participant for this event
+        const Registration = require('../models/Registration');
+        const isParticipant = await Registration.findOne({ eventId: event._id, userId: userToAdd._id, status: { $ne: 'cancelled' } });
+        if (isParticipant) {
+            return res.status(400).json({ message: 'Cannot assign user as volunteer: they are already registered as a participant for this event.' });
         }
 
         event.coordinators.push({

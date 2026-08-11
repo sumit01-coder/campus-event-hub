@@ -67,6 +67,7 @@ const registerUser = async (req, res) => {
                 capabilities: user.capabilities,
                 profile: user.profile,
                 organizerProfile: user.organizerProfile,
+                paymentConfig: user.paymentConfig,
                 token: generateToken(user._id, user.capabilities),
             });
         } else {
@@ -97,6 +98,7 @@ const loginUser = async (req, res) => {
                 capabilities: user.capabilities,
                 profile: user.profile,
                 organizerProfile: user.organizerProfile,
+                paymentConfig: user.paymentConfig,
                 token: generateToken(user._id, user.capabilities),
             });
         } else {
@@ -205,6 +207,7 @@ const verifyEmail = async (req, res) => {
             capabilities: user.capabilities,
             profile: user.profile,
             organizerProfile: user.organizerProfile,
+            paymentConfig: user.paymentConfig,
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });

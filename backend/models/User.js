@@ -82,6 +82,12 @@ const userSchema = new mongoose.Schema({
             enum: ['none', 'pending', 'verified', 'rejected'],
             default: 'none'
         }
+    },
+
+    // Manual Payment Integration
+    paymentConfig: {
+        qrCode: { type: String }, // URL to uploaded QR code image
+        upiId: { type: String }
     }
 }, { timestamps: true });
 

@@ -30,6 +30,10 @@ const eventSchema = new mongoose.Schema({
         required: true,
         enum: ['technology', 'music', 'workshop', 'business', 'sports', 'arts', 'other']
     },
+    isPaid: {
+        type: Boolean,
+        default: false
+    },
     price: {
         type: Number,
         default: 0 // 0 means Free

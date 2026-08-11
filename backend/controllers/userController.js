@@ -51,6 +51,7 @@ const updateOnboarding = async (req, res) => {
             capabilities: updatedUser.capabilities,
             profile: updatedUser.profile,
             organizerProfile: updatedUser.organizerProfile,
+            paymentConfig: updatedUser.paymentConfig,
         });
 
     } catch (error) {
@@ -63,7 +64,7 @@ const updateOnboarding = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
     try {
-        const { name, email, phone, college, department, year, studentId, organizationType, organizationName, designation } = req.body;
+        const { name, email, phone, college, department, year, studentId, organizationType, organizationName, designation, paymentConfig } = req.body;
         
         const user = await User.findById(req.user.id);
         
@@ -129,6 +130,15 @@ const updateProfile = async (req, res) => {
             }
         }
 
+        // Handle Payment Config
+        if (paymentConfig) {
+            if (!user.paymentConfig) {
+                user.paymentConfig = {};
+            }
+            if (paymentConfig.qrCode !== undefined) user.paymentConfig.qrCode = paymentConfig.qrCode;
+            if (paymentConfig.upiId !== undefined) user.paymentConfig.upiId = paymentConfig.upiId;
+        }
+
         const updatedUser = await user.save();
 
         res.json({
@@ -140,6 +150,7 @@ const updateProfile = async (req, res) => {
             capabilities: updatedUser.capabilities,
             profile: updatedUser.profile,
             organizerProfile: updatedUser.organizerProfile,
+            paymentConfig: updatedUser.paymentConfig,
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -170,8 +181,11 @@ const submitIdentityVerification = async (req, res) => {
         
         const expectedCollege = user.profile?.college || '';
         const expectedId = user.profile?.studentId || '';
+        const expectedMobile = user.phone || '';
         
-        const pythonProcess = spawn('python', [scriptPath, absoluteImagePath, user.name, expectedCollege, expectedId]);
+        const absoluteLivePhotoPath = path.join(__dirname, '..', livePhotoUrl);
+        
+        const pythonProcess = spawn('python', [scriptPath, absoluteImagePath, absoluteLivePhotoPath, user.name, expectedCollege, expectedId, expectedMobile]);
 
         let pythonOutput = '';
         
@@ -197,7 +211,8 @@ const submitIdentityVerification = async (req, res) => {
         try {
             const ocrResult = JSON.parse(pythonOutput);
             if (!ocrResult.match) {
-                return res.status(400).json({ message: 'Identity Verification Failed: ID Card does not match profile details.' });
+                const errorMsg = ocrResult.error || 'Identity Verification Failed: Details do not match.';
+                return res.status(400).json({ message: errorMsg });
             }
             extractedText = ocrResult.extracted_text || 'Name matched successfully.';
             extractedData = ocrResult.extracted_data || {};
@@ -234,6 +249,7 @@ const submitIdentityVerification = async (req, res) => {
             capabilities: updatedUser.capabilities,
             profile: updatedUser.profile,
             organizerProfile: updatedUser.organizerProfile,
+            paymentConfig: updatedUser.paymentConfig,
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });

@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
-import { ShieldAlert, Clock, XCircle, Send, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Tag, Users, DollarSign, Loader2, Upload, Bold, Italic, Underline, List, ListOrdered, Link2, LayoutList, ChevronRight, CheckCircle, Info, PenTool, Eye, Edit3, ArrowRight, ExternalLink } from 'lucide-react';
+import { ShieldAlert, Clock, XCircle, Send, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Tag, Users, DollarSign, Loader2, Upload, Bold, Italic, Underline, List, ListOrdered, Link2, LayoutList, ChevronRight, ChevronDown, CheckCircle, Info, PenTool, Eye, Edit3, ArrowRight, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -33,7 +33,7 @@ export default function HostEvent() {
     time: '',
     venue: '',
     image: '',
-    category: 'technology',
+    category: '',
     price: '',
     capacity: '',
     registrationDeadline: '',
@@ -295,14 +295,15 @@ export default function HostEvent() {
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">Category <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" size={16} />
                       <select 
                         name="category" 
                         value={formData.category} 
                         onChange={handleChange} 
-                        className="w-full pl-9 pr-3 bg-white border border-gray-200 py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm appearance-none cursor-pointer"
+                        required
+                        className="w-full pl-9 pr-10 bg-white border border-gray-200 py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm appearance-none cursor-pointer relative z-0 transition-shadow hover:border-gray-300"
                       >
-                        <option value="technology">Select a category</option>
+                        <option value="" disabled>Select a category</option>
                         <option value="technology">Technology</option>
                         <option value="music">Music & Arts</option>
                         <option value="business">Business & Networking</option>
@@ -310,6 +311,7 @@ export default function HostEvent() {
                         <option value="workshop">Workshop / Seminar</option>
                         <option value="other">Other</option>
                       </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" size={16} />
                     </div>
                   </div>
                 </div>
@@ -413,17 +415,18 @@ export default function HostEvent() {
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">Participation Type <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" size={16} />
                       <select 
                         name="participationType" 
                         value={formData.participationType} 
                         onChange={handleChange} 
-                        className="w-full pl-9 pr-3 bg-white border border-gray-200 py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm appearance-none cursor-pointer text-gray-700" 
+                        className="w-full pl-9 pr-10 bg-white border border-gray-200 py-2.5 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm appearance-none cursor-pointer text-gray-700 relative z-0 transition-shadow hover:border-gray-300" 
                       >
                         <option value="individual">Individual</option>
                         <option value="group">Group</option>
                         <option value="both">Both</option>
                       </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" size={16} />
                     </div>
                   </div>
                   

@@ -164,7 +164,7 @@ export default function EventDetails() {
 
   const handleApproveCancellation = async (memberRegId) => {
     try {
-      await api.post(`/registrations/${memberRegId}/approve-cancellation`);
+      await api.put(`/registrations/${memberRegId}/approve-cancellation`);
       toast.success('Member removed');
       setTeamMembers(prev => prev.filter(m => m._id !== memberRegId));
     } catch (error) {
@@ -174,7 +174,7 @@ export default function EventDetails() {
 
   const handleRejectCancellation = async (memberRegId) => {
     try {
-      await api.post(`/registrations/${memberRegId}/reject-cancellation`);
+      await api.put(`/registrations/${memberRegId}/reject-cancellation`);
       toast.success('Cancellation rejected');
       setTeamMembers(prev => prev.map(m => m._id === memberRegId ? { ...m, cancellationRequested: false } : m));
     } catch (error) {
@@ -623,7 +623,7 @@ export default function EventDetails() {
                     onClick={() => setIsModalOpen(true)}
                     className="w-full bg-white text-indigo-900 font-bold text-lg py-4 rounded-xl shadow-lg hover:bg-gray-50 active:scale-95 transition-all flex justify-center items-center gap-2"
                   >
-                    Register Now
+                    {event.isPaid && event.price > 0 ? `Register & Pay ₹${event.price}` : 'Register Now'}
                   </button>
                 )}
 

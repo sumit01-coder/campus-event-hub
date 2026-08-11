@@ -57,7 +57,7 @@ export default function ManageCoordinatorsModal({ isOpen, onClose, event, onEven
               <Shield size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Manage Volunteers</h2>
+              <h2 className="text-xl font-bold text-gray-900">Manage Volunteers & Student Coordinators</h2>
               <p className="text-sm text-gray-500 line-clamp-1">{event.title}</p>
             </div>
           </div>

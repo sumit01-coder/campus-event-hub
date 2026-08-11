@@ -8,133 +8,188 @@ import difflib
 original_stdout = sys.stdout
 sys.stdout = io.StringIO()
 
-def perform_ocr_verification(image_path, expected_name, expected_college="", expected_id=""):
+def check_liveness(live_photo_path):
+    try:
+        import cv2
+    except ImportError:
+        return False, "OpenCV (cv2) library not installed."
+        
+    try:
+        # Load the image
+        img = cv2.imread(live_photo_path)
+        if img is None:
+            return False, "Could not read live photo."
+            
+        # Convert to grayscale
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # 1. Check Blurriness (Variance of Laplacian)
+        variance = cv2.Laplacian(gray, cv2.CV_64F).var()
+        if variance < 50:
+            return False, "The live photo is too blurry. Please hold the camera still and ensure good lighting."
+            
+        # 2. Check Brightness (Overall image brightness)
+        import numpy as np
+        brightness = np.mean(gray)
+        if brightness < 40:
+            return False, "The live photo is too dark. Please move to a well-lit area."
+        if brightness > 230:
+            return False, "The live photo is too bright or washed out. Please avoid standing directly under harsh light."
+        
+        # Load Haar cascade
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        
+        # Detect faces with stricter parameters for higher accuracy
+        faces = face_cascade.detectMultiScale(
+            gray, 
+            scaleFactor=1.1, 
+            minNeighbors=6, # Higher means more strict
+            minSize=(100, 100) # Require the face to be a decent size
+        )
+        
+        if len(faces) == 0:
+            return False, "No clear face detected. Please look directly at the camera without accessories blocking your face."
+            
+        if len(faces) > 1:
+            return False, "Multiple faces detected. Please ensure only you are in the frame."
+            
+        # 3. Check Face Area (Ensure they are close enough to the camera)
+        img_h, img_w = img.shape[:2]
+        img_area = img_h * img_w
+        
+        # Get the largest face
+        largest_face = max(faces, key=lambda rect: rect[2] * rect[3])
+        x, y, w, h = largest_face
+        face_area = w * h
+        
+        if face_area < (img_area * 0.05): # Face must take up at least 5% of the frame
+            return False, "Face is too far away. Please move closer to the camera."
+            
+        return True, "Face detected clearly."
+    except Exception as e:
+        return False, f"Face detection error: {str(e)}"
+
+def match_name(expected, actual):
+    if not expected: return False
+    # Check if all parts of the expected name exist in the actual name (order independent)
+    expected_words = expected.upper().split()
+    actual_upper = actual.upper()
+    
+    matches = 0
+    for word in expected_words:
+        if word in actual_upper:
+            matches += 1
+            
+    # If all expected words are found, it's a match!
+    if matches == len(expected_words):
+        return True
+    
+    # Fallback to spaceless fuzzy match
+    return fuzzy_match(expected, actual, 0.80)
+
+def fuzzy_match(expected, actual, threshold=0.85):
+    if not expected:
+        return False
+        
+    expected_upper = expected.upper()
+    actual_upper = actual.upper()
+    
+    if expected_upper in actual_upper:
+        return True
+        
+    # Spaceless check
+    expected_spaceless = expected_upper.replace(" ", "")
+    actual_spaceless = actual_upper.replace(" ", "")
+    if expected_spaceless in actual_spaceless:
+        return True
+        
+    if len(expected_spaceless) > 0 and len(actual_spaceless) >= len(expected_spaceless):
+        window_size = len(expected_spaceless)
+        best_ratio = 0.0
+        for i in range(len(actual_spaceless) - window_size + 1):
+            window_text = actual_spaceless[i:i+window_size]
+            ratio = difflib.SequenceMatcher(None, expected_spaceless, window_text).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+                
+        if best_ratio >= threshold:
+            return True
+            
+    return False
+
+def perform_ocr_verification(id_card_path, live_photo_path, expected_name, expected_college, expected_id, expected_mobile):
+    # 1. Liveness Check
+    is_live, liveness_msg = check_liveness(live_photo_path)
+    if not is_live:
+        return {"match": False, "error": liveness_msg}
+        
     try:
         import easyocr
     except ImportError:
         return {"match": False, "error": "easyocr library not installed."}
         
     try:
-        # Initialize reader (will download models on first run if missing)
-        reader = easyocr.Reader(['en'], gpu=False) # CPU mode for safety
+        # Initialize reader
+        reader = easyocr.Reader(['en'], gpu=False)
         
         # Read text from image
-        result = reader.readtext(image_path, detail=0)
-        full_text = " ".join(result)
+        result = reader.readtext(id_card_path, detail=0)
+        full_text = " ".join(result).upper()
         
-        # 1. Match Name (fuzzy / exact parts)
-        # 1. Extract Name (Fuzzy Match)
-        extracted_name = None
-        expected_name_upper = expected_name.upper()
+        # Validation Flags
+        is_name_match = match_name(expected_name, full_text)
+        is_college_match = fuzzy_match(expected_college, full_text, threshold=0.75) # Reduced to 75% for typos
         
-        # Check direct inclusion first
-        if expected_name_upper in full_text.upper():
-            extracted_name = expected_name_upper
-        else:
-            # Check with difflib for fuzzy matching
-            # Split full text into words, then use sliding windows of length equal to expected name words
-            expected_words = expected_name_upper.split()
-            full_words = full_text.upper().split()
-            window_size = len(expected_words)
-            
-            best_ratio = 0.0
-            if window_size > 0 and len(full_words) >= window_size:
-                for i in range(len(full_words) - window_size + 1):
-                    window_text = " ".join(full_words[i:i+window_size])
-                    ratio = difflib.SequenceMatcher(None, expected_name_upper, window_text).ratio()
-                    if ratio > best_ratio:
-                        best_ratio = ratio
-                
-                # If 50% similar or higher, we consider it a match for demo purposes
-                if best_ratio >= 0.50:
-                    extracted_name = expected_name_upper
-                    
-        # If we still haven't found the name, don't fail the entire process. 
-        # Just leave extracted_name as None. We will try to guess it later based on ID position.
-            
-        # 2. Extract ID Number 
-        extracted_id = None
-        if expected_id and len(expected_id) > 2:
-            # Normalize confusing characters (O/0, I/L/1) for robust matching
+        # ID Match (Exact, but normalized)
+        is_id_match = False
+        if expected_id:
             def norm_id(s):
                 return s.lower().replace('o', '0').replace('i', '1').replace('l', '1').replace('-', '').replace(' ', '')
-                
-            if norm_id(expected_id) in norm_id(full_text):
-                # If the normalized expected ID is found, use it!
-                extracted_id = expected_id.upper()
-        
-        if not extracted_id:
-            # Fallback to regex
-            # First try alphanumeric pattern
-            id_match = re.search(r'[0-9]{2}[A-Z]{2}[0-9O]{2}[A-Z]{2}[0-9O]{3}', full_text)
-            if id_match:
-                extracted_id = id_match.group(0)
-            else:
-                # Try purely numeric sequence of 11-15 digits (to avoid 10 digit mobile numbers)
-                num_match = re.search(r'\b[0-9]{11,15}\b', full_text)
-                if num_match:
-                    extracted_id = num_match.group(0)
-                else:
-                    # Also try to find a sequence of 11 digits even without word boundaries, in case OCR removed spaces
-                    num_match = re.search(r'[0-9]{11,15}', full_text)
-                    if num_match:
-                        extracted_id = num_match.group(0)
-        
-        # 3. Extract Mobile Number (10 digits)
-        # Remove all non-digits from full text to find a 10 digit sequence easily
-        digits_only = re.sub(r'\D', '', full_text)
-        mobile_match = re.search(r'([0-9]{10})', digits_only)
-        extracted_mobile = mobile_match.group(1) if mobile_match else None
-        
-        # 4. Extract University 
-        extracted_uni = None
-        if expected_college and len(expected_college) > 3:
-            # Check if any significant word of the expected college matches (fuzzy match)
-            expected_uni_words = expected_college.lower().split()
-            important_words = [w for w in expected_uni_words if len(w) > 3 and w not in ["university", "college", "institute"]]
             
-            for word in important_words:
-                if word in full_text.lower():
-                    extracted_uni = expected_college.upper()
-                    break
-        
-        if not extracted_uni:
-            # Fallback to keyword search
-            keywords = ["UNIVERSITY", "COLLEGE", "INSTITUTE", "ACADEMY", "SCHOOL", "TECH", "CAMPUS"]
-            for block in result:
-                if any(kw in block.upper() for kw in keywords):
-                    extracted_uni = block
-                    break
-                
-        # 5. Calculate Confidence Score
-        score = 0
-        if extracted_name: score += 25
-        if extracted_id: score += 25
-        if extracted_mobile: score += 25
-        if extracted_uni: score += 25
-        
-        # 6. Guess name if missing
-        if not extracted_name and extracted_id:
-            # Find the line that contains the ID, then take the line before it as the name
-            for i, line in enumerate(result):
-                if extracted_id in line:
-                    if i > 0:
-                        # Assuming the line before is the name
-                        extracted_name = result[i-1]
-                    break
-
-        # Format the extracted data
+            if norm_id(expected_id) in norm_id(full_text):
+                is_id_match = True
+        else:
+            is_id_match = True # Ignore if empty in profile
+            
+        # Mobile Match (Exact)
+        is_mobile_match = False
+        if expected_mobile:
+            digits_only = re.sub(r'\D', '', full_text)
+            expected_digits = re.sub(r'\D', '', expected_mobile)
+            
+            if expected_digits in digits_only:
+                is_mobile_match = True
+        else:
+            is_mobile_match = True
+            
+        # Compile errors for strict matching
+        errors = []
+        if not is_name_match:
+            errors.append("Name on ID card does not match profile.")
+        if not is_college_match:
+            errors.append("College on ID card does not match profile.")
+        if not is_id_match:
+            errors.append(f"Student ID ({expected_id}) not found on ID card.")
+        if not is_mobile_match:
+            errors.append(f"Mobile number not found on ID card.")
+            
+        if len(errors) > 0:
+            return {
+                "match": False,
+                "error": "Strict Verification Failed: " + " | ".join(errors)
+            }
+            
         extracted_data = {
-            "name": extracted_name,
-            "idNumber": extracted_id or "Not Found",
-            "mobile": extracted_mobile or "Not Found",
-            "university": extracted_uni or "Not Found"
+            "name": expected_name.upper(),
+            "idNumber": expected_id.upper(),
+            "mobile": expected_mobile,
+            "university": expected_college.upper()
         }
         
         return {
             "match": True,
-            "confidence": score,
-            "extracted_text": "\n".join(result),
+            "confidence": 100, # Strict match implies high confidence
+            "extracted_text": full_text,
             "extracted_data": extracted_data
         }
         
@@ -142,17 +197,19 @@ def perform_ocr_verification(image_path, expected_name, expected_college="", exp
         return {"match": False, "error": str(e)}
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 5:
         sys.stdout = original_stdout
         print(json.dumps({"match": False, "error": "Missing arguments"}))
         sys.exit(1)
         
-    image_path = sys.argv[1]
-    expected_name = sys.argv[2]
-    expected_college = sys.argv[3] if len(sys.argv) > 3 else ""
-    expected_id = sys.argv[4] if len(sys.argv) > 4 else ""
+    id_card_path = sys.argv[1]
+    live_photo_path = sys.argv[2]
+    expected_name = sys.argv[3]
+    expected_college = sys.argv[4] if len(sys.argv) > 4 else ""
+    expected_id = sys.argv[5] if len(sys.argv) > 5 else ""
+    expected_mobile = sys.argv[6] if len(sys.argv) > 6 else ""
     
-    result = perform_ocr_verification(image_path, expected_name, expected_college, expected_id)
+    result = perform_ocr_verification(id_card_path, live_photo_path, expected_name, expected_college, expected_id, expected_mobile)
     
     # Restore stdout to print the clean JSON payload to Node.js
     sys.stdout = original_stdout

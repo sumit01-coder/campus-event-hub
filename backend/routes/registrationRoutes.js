@@ -13,7 +13,9 @@ const {
     rejectCancellation,
     setProblemPreferences,
     assignProblem,
-    submitProject 
+    submitProject,
+    approvePayment,
+    rejectPayment
 } = require('../controllers/registrationController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -27,6 +29,8 @@ router.delete('/:eventId', protect, cancelRegistration);
 router.put('/:id/checkin', protect, checkInRegistration);
 router.put('/:id/approve-cancellation', protect, approveCancellation);
 router.put('/:id/reject-cancellation', protect, rejectCancellation);
+router.put('/:id/approve-payment', protect, approvePayment);
+router.put('/:id/reject-payment', protect, rejectPayment);
 
 // Hackathon specific routes
 router.put('/:id/preferences', protect, setProblemPreferences);

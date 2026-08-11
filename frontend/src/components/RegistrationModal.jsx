@@ -1,9 +1,16 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, UploadCloud, CheckCircle } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import api from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function RegistrationModal({ isOpen, onClose, event, onRegister, isRegistering }) {
   const { user } = useContext(AuthContext);
+  const [paymentProofUrl, setPaymentProofUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [showQrPreview, setShowQrPreview] = useState(false);
+  
+  const hasQrCode = !!event?.organizerId?.paymentConfig?.qrCode;
 
   const [formData, setFormData] = useState({
     participantName: '',
@@ -34,7 +41,34 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onRegister(formData);
+    if (event.price > 0 && !paymentProofUrl) {
+      toast.error('Please upload your payment proof screenshot');
+      return;
+    }
+    onRegister({ ...formData, paymentProof: paymentProofUrl });
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append('image', file);
+
+    setIsUploading(true);
+    try {
+      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
+      const { data } = await api.post('/upload', uploadData, config);
+      
+      const newUrl = `http://localhost:5000${data.imageUrl}`;
+      setPaymentProofUrl(newUrl);
+      toast.success('Payment proof uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload payment proof');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -166,6 +200,61 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
                   <p className="text-sm text-orange-800 font-bold">Total Payment Required:</p>
                   <p className="text-lg text-orange-900 font-black">₹{event.price * (formData.participationType === 'group' ? formData.teamSize : 1)}</p>
                 </div>
+
+                <div className="mt-4 border-t border-orange-200 pt-4">
+                  <p className="text-sm font-bold text-orange-900 mb-2">1. Scan & Pay</p>
+                  {hasQrCode ? (
+                    <>
+                      <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl border border-orange-200 mb-4">
+                        <img 
+                          src={event.organizerId.paymentConfig.qrCode} 
+                          alt="UPI QR Code" 
+                          className="w-40 h-40 object-contain mb-2 cursor-pointer hover:opacity-80 transition-opacity border border-gray-100 rounded-lg p-1" 
+                          onClick={() => setShowQrPreview(true)}
+                          title="Click to enlarge"
+                        />
+                        <p className="text-xs font-bold text-gray-500 uppercase mt-1">UPI ID: {event.organizerId.paymentConfig.upiId}</p>
+                        <button 
+                          type="button"
+                          onClick={() => setShowQrPreview(true)}
+                          className="text-indigo-600 text-[10px] font-bold uppercase mt-1 hover:underline"
+                        >
+                          Tap to enlarge QR
+                        </button>
+                      </div>
+
+                      <p className="text-sm font-bold text-orange-900 mb-2">2. Upload Payment Proof <span className="text-red-500">*</span></p>
+                      <div className="relative overflow-hidden w-full">
+                        {paymentProofUrl ? (
+                          <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="text-green-500" size={20} />
+                              <span className="text-sm font-bold text-green-700">Proof Uploaded</span>
+                            </div>
+                            <button type="button" onClick={() => setPaymentProofUrl('')} className="text-xs text-red-500 font-bold hover:underline">Remove</button>
+                          </div>
+                        ) : (
+                          <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-orange-300 rounded-xl bg-orange-50/50 hover:bg-orange-100/50 transition-colors cursor-pointer">
+                            <UploadCloud className="text-orange-400 mb-1" size={24} />
+                            <span className="text-xs font-bold text-orange-700">{isUploading ? 'Uploading...' : 'Click to upload screenshot'}</span>
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              disabled={isUploading}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-6 bg-white rounded-xl border-2 border-red-200 mb-2">
+                      <p className="text-sm font-bold text-red-600 text-center mb-1">Payment option not available.</p>
+                      <p className="text-xs text-red-400 text-center">The organizer has not uploaded a QR code yet. Please contact the organizer.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -180,11 +269,13 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
               </button>
               <button 
                 type="submit"
-                disabled={isRegistering}
+                disabled={isRegistering || (event.price > 0 && !hasQrCode)}
                 className="flex-[2] px-4 py-3 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-colors flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isRegistering ? (
                   <><Loader2 className="animate-spin" size={18} /> Processing...</>
+                ) : event.price > 0 && !hasQrCode ? (
+                  'Payment Unavailable'
                 ) : (
                   'Confirm Registration'
                 )}
@@ -194,6 +285,25 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
           </form>
         </div>
       </div>
+
+      {/* QR Code Full Screen Preview Modal */}
+      {showQrPreview && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setShowQrPreview(false)}>
+          <div className="relative bg-white p-6 rounded-3xl max-w-sm w-full flex flex-col items-center animate-zoom-in" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setShowQrPreview(false)}
+              className="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-full p-2 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-lg font-black text-gray-900 mb-4">Scan to Pay</h3>
+            <div className="bg-gray-50 p-2 rounded-2xl border border-gray-200 w-full flex justify-center">
+              <img src={event.organizerId.paymentConfig.qrCode} alt="UPI QR Code Preview" className="w-full max-w-[280px] object-contain rounded-xl" />
+            </div>
+            <p className="text-sm font-bold text-gray-600 mt-4 uppercase">UPI ID: {event.organizerId.paymentConfig.upiId}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

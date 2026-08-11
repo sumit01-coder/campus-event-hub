@@ -13,7 +13,7 @@ const generateTeamCode = () => {
 // @access  Private
 const registerForEvent = async (req, res) => {
     try {
-        const { eventId, participantName, email, phone, college, participationType = 'individual', teamSize = 1 } = req.body;
+        const { eventId, participantName, email, phone, college, participationType = 'individual', teamSize = 1, paymentProof } = req.body;
 
         // Check if event exists
         const event = await Event.findById(eventId);
@@ -31,8 +31,24 @@ const registerForEvent = async (req, res) => {
             return res.status(400).json({ message: 'You are already registered for this event.' });
         }
 
-        // Determine payment status (naive check based on event price)
-        const paymentStatus = event.price > 0 ? 'paid' : 'free'; // In a real app, this would integrate with a payment gateway
+        // Check if the user is the organizer or a coordinator
+        if (event.organizerId.toString() === req.user._id.toString()) {
+            return res.status(400).json({ message: 'You are the organizer of this event and cannot register as a participant.' });
+        }
+        
+        const isCoordinator = event.coordinators && event.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+        if (isCoordinator) {
+            return res.status(400).json({ message: 'You are a coordinator/volunteer for this event and cannot register as a participant.' });
+        }
+
+        // Determine payment status
+        let paymentStatus = 'free';
+        if (event.isPaid && event.price > 0) {
+            if (!paymentProof) {
+                return res.status(400).json({ message: 'Payment proof is required for paid events' });
+            }
+            paymentStatus = 'pending_verification';
+        }
 
         let teamCode = null;
         let isTeamLeader = false;
@@ -54,7 +70,8 @@ const registerForEvent = async (req, res) => {
             isTeamLeader,
             teamSize: isTeamLeader ? teamSize : 1,
             status: 'registered',
-            paymentStatus: paymentStatus
+            paymentStatus: paymentStatus,
+            paymentProof: paymentProof
         });
 
         await Event.findByIdAndUpdate(eventId, { $inc: { registeredCount: 1 } });
@@ -75,23 +92,38 @@ const registerForEvent = async (req, res) => {
             req.io.emit('registration_updated', { eventId: eventId.toString() });
         }
 
-        // Send Email Ticket
-        try {
-            const ticketId = registration._id.toString().substring(registration._id.toString().length - 8).toUpperCase();
-            // Assuming frontend URL is http://localhost:5173 for local, fallback to that
-            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-            const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(frontendUrl + '/checkin/' + event._id + '/' + registration._id)}`;
-            
-            await sendTicketEmail(
-                registration.email || req.user.email,
-                registration.participantName,
-                event.title,
-                ticketId,
-                qrDataUrl
-            );
-        } catch (emailErr) {
-            console.error("Failed to send ticket email", emailErr);
-            // Non-blocking error
+        // Send Email Ticket (only if free)
+        if (paymentStatus === 'free') {
+            try {
+                const ticketId = registration._id.toString().substring(registration._id.toString().length - 8).toUpperCase();
+                // Assuming frontend URL is http://localhost:5173 for local, fallback to that
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(frontendUrl + '/checkin/' + event._id + '/' + registration._id)}`;
+                
+                await sendTicketEmail(
+                    registration.email || req.user.email,
+                    registration.participantName,
+                    event.title,
+                    ticketId,
+                    qrDataUrl
+                );
+            } catch (emailErr) {
+                console.error("Failed to send ticket email", emailErr);
+                // Non-blocking error
+            }
+        } else {
+            // Notify organizer about pending payment
+            const organizerNotif = new Notification({
+                userId: event.organizerId,
+                title: 'New Pending Payment',
+                message: `${participantName} uploaded payment proof for ${event.title}. Please verify.`,
+                type: 'info',
+                link: `/hosted-events`
+            });
+            await organizerNotif.save();
+            if (req.io) {
+                req.io.to(event.organizerId.toString()).emit('new_notification', organizerNotif);
+            }
         }
         
         res.status(201).json(registration);
@@ -268,7 +300,7 @@ const getTeamMembers = async (req, res) => {
         // Find all registrations with this teamCode (either as leader or joined)
         const teamMembers = await Registration.find({
             $or: [{ teamCode: teamCode }, { joinedTeamCode: teamCode }]
-        }).select('participantName email isTeamLeader status');
+        }).select('participantName email isTeamLeader status cancellationRequested teamSize');
 
         res.json(teamMembers);
     } catch (error) {
@@ -465,8 +497,92 @@ const submitProject = async (req, res) => {
         
         await registration.save();
         res.json(registration);
+        res.json(registration);
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Approve a pending payment
+// @route   PUT /api/registrations/:id/approve-payment
+// @access  Private (Organizer)
+const approvePayment = async (req, res) => {
+    try {
+        const registration = await Registration.findById(req.params.id).populate('eventId');
+        if (!registration) return res.status(404).json({ message: 'Registration not found' });
+        
+        if (registration.eventId.organizerId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        registration.paymentStatus = 'verified';
+        await registration.save();
+
+        // Send Email Ticket now that it's approved (Non-blocking)
+        const ticketId = registration._id.toString().substring(registration._id.toString().length - 8).toUpperCase();
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(frontendUrl + '/checkin/' + registration.eventId._id + '/' + registration._id)}`;
+        
+        sendTicketEmail(
+            registration.email,
+            registration.participantName,
+            registration.eventId.title,
+            ticketId,
+            qrDataUrl
+        ).catch(emailErr => {
+            console.error("Failed to send ticket email upon approval", emailErr);
+        });
+
+        // Notify user
+        const notif = new Notification({
+            userId: registration.userId,
+            title: 'Payment Verified!',
+            message: `Your payment for ${registration.eventId.title} has been verified and your ticket is ready.`,
+            type: 'success',
+            link: '/my-events'
+        });
+        await notif.save();
+        if (req.io) {
+            req.io.to(registration.userId.toString()).emit('new_notification', notif);
+        }
+
+        res.json(registration);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// @desc    Reject a pending payment
+// @route   PUT /api/registrations/:id/reject-payment
+// @access  Private (Organizer)
+const rejectPayment = async (req, res) => {
+    try {
+        const registration = await Registration.findById(req.params.id).populate('eventId');
+        if (!registration) return res.status(404).json({ message: 'Registration not found' });
+        
+        if (registration.eventId.organizerId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        registration.paymentStatus = 'rejected';
+        await registration.save();
+
+        // Notify user
+        const notif = new Notification({
+            userId: registration.userId,
+            title: 'Payment Rejected',
+            message: `Your payment proof for ${registration.eventId.title} was rejected by the organizer. Please try registering again.`,
+            type: 'error',
+            link: `/event/${registration.eventId._id}`
+        });
+        await notif.save();
+        if (req.io) {
+            req.io.to(registration.userId.toString()).emit('new_notification', notif);
+        }
+
+        res.json(registration);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 
@@ -483,5 +599,7 @@ module.exports = {
     rejectCancellation,
     setProblemPreferences,
     assignProblem,
-    submitProject
+    submitProject,
+    approvePayment,
+    rejectPayment
 };

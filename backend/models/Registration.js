@@ -53,8 +53,11 @@ const registrationSchema = new mongoose.Schema({
     },
     paymentStatus: {
         type: String,
-        enum: ['free', 'pending', 'paid'],
+        enum: ['free', 'pending_verification', 'verified', 'rejected', 'paid', 'pending'],
         default: 'free'
+    },
+    paymentProof: {
+        type: String // URL to the uploaded screenshot
     },
     cancellationRequested: {
         type: Boolean,

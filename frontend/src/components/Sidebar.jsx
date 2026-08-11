@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Calendar, Users, Settings, LogOut, PlusCircle, Building, Menu, ChevronRight } from 'lucide-react';
+import { Home, Calendar, Users, Settings, LogOut, PlusCircle, Building, Menu, ChevronRight, Award } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { SidebarContext } from '../context/SidebarContext';
 
@@ -22,6 +22,7 @@ export default function Sidebar() {
 
   const footerNavItems = [
     { name: 'Profile', path: '/profile', icon: Users },
+    { name: 'My Badges', path: '/badges', icon: Award },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -52,14 +53,14 @@ export default function Sidebar() {
         </div>
         
         {/* Toggle Button (Desktop only) */}
-        <div className="hidden md:flex px-4 mb-6 justify-start">
-        <button 
-          onClick={toggleSidebar} 
-          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-xl transition-colors"
-        >
-          <Menu size={22} />
-        </button>
-      </div>
+        <div className={`hidden md:flex mb-6 ${isOpen ? 'px-6 justify-start' : 'justify-center'}`}>
+          <button 
+            onClick={toggleSidebar} 
+            className="p-2.5 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <Menu size={22} />
+          </button>
+        </div>
 
       <nav className="flex-1 px-3 space-y-1">
         {navItems.map((item) => {
@@ -87,11 +88,14 @@ export default function Sidebar() {
         })}
 
         {/* Section Divider */}
-        <div className="px-3 pt-6 pb-2 relative flex items-center justify-center min-h-[48px]">
-          <span className={`text-xs font-semibold text-gray-500 transition-all duration-300 whitespace-nowrap absolute left-4 ${isOpen ? 'opacity-100' : 'md:opacity-0'}`}>
-            Your Account
-          </span>
-          <div className={`h-[1px] bg-gray-200 transition-all duration-300 ${isOpen ? 'w-0 opacity-0' : 'md:w-8 md:opacity-100 w-0 opacity-0'}`} />
+        <div className="pt-6 pb-2 relative flex items-center justify-center min-h-[48px]">
+          {isOpen ? (
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-full px-3">
+              Your Account
+            </span>
+          ) : (
+            <div className="h-[2px] w-8 bg-gray-100 rounded-full" />
+          )}
         </div>
 
         {footerNavItems.map((item) => {

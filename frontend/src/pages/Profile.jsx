@@ -204,34 +204,34 @@ export default function Profile() {
             <p className="text-lg text-gray-500 font-medium mb-4">{user.profile?.course || 'Student'} • {user.profile?.college || 'University'}</p>
             <div className="flex flex-wrap gap-2 justify-center md:justify-start">
               {user.capabilities?.participant && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold shadow-sm hover:shadow-md transition-shadow">
                   <BadgeCheck size={14} /> Participant
                 </span>
               )}
               {user.capabilities?.organizer && (
                 <>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-bold border border-purple-100">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white text-xs font-bold shadow-sm hover:shadow-md transition-shadow">
                     <Shield size={14} /> Organizer
                   </span>
                   {user.organizerProfile?.verificationStatus === 'verified' && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-bold border border-green-100">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-sm hover:shadow-md transition-shadow">
                       <BadgeCheck size={14} /> Verified Host
                     </span>
                   )}
                 </>
               )}
               {user.capabilities?.volunteer && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-100">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-sm hover:shadow-md transition-shadow">
                   <Shield size={14} /> Volunteer
                 </span>
               )}
               {user.identityVerification?.status === 'verified' && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs font-bold shadow-sm hover:shadow-md transition-shadow">
                   <BadgeCheck size={14} /> ID Verified
                 </span>
               )}
               {user.isEmailVerified && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-bold border border-teal-100">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-xs font-bold shadow-sm hover:shadow-md transition-shadow">
                   <BadgeCheck size={14} /> Email Verified
                 </span>
               )}
