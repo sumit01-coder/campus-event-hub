@@ -28,13 +28,22 @@ export default function EventDetails() {
   const [queries, setQueries] = useState([]);
   const [newQueryText, setNewQueryText] = useState('');
   const [socket, setSocket] = useState(null);
+  const [presenceList, setPresenceList] = useState([]);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    // Connect to WebSocket
-    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+    // Connect to WebSocket with auth token
+    const userObj = JSON.parse(localStorage.getItem('user'));
+    const token = userObj?.token || '';
+    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      auth: { token }
+    });
     setSocket(newSocket);
+
+    newSocket.on('connect_error', (err) => {
+      console.warn('Socket connection error:', err.message);
+    });
 
     newSocket.on('connect', () => {
       newSocket.emit('join_event', id);
@@ -73,6 +82,10 @@ export default function EventDetails() {
           announcements: (prev.announcements || []).filter(a => a._id !== announcementId)
         };
       });
+    });
+
+    newSocket.on('presence_update', (users) => {
+      setPresenceList(users);
     });
 
     return () => newSocket.close();
@@ -263,8 +276,8 @@ export default function EventDetails() {
             {/* Main Details (Left) */}
             <div className="lg:col-span-2 space-y-10">
               
-              {/* Announcements / Broadcast Section */}
-              {event.announcements && event.announcements.length > 0 && (
+              {/* Announcements / Broadcast Section — only show visible ones */}
+              {event.announcements && event.announcements.filter(a => !a.isHidden).length > 0 && (
                 <section className="animate-fade-in-up">
                   <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
                     <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-3">
@@ -272,11 +285,11 @@ export default function EventDetails() {
                       Live Announcements
                     </h2>
                     <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold border border-indigo-100">
-                      {event.announcements.length} {event.announcements.length === 1 ? 'Update' : 'Updates'}
+                      {event.announcements.filter(a => !a.isHidden).length} {event.announcements.filter(a => !a.isHidden).length === 1 ? 'Update' : 'Updates'}
                     </span>
                   </div>
                   <div className="space-y-4 max-h-[400px] overflow-y-auto pr-3 custom-scrollbar">
-                    {event.announcements.slice().reverse().map((announcement, index) => (
+                    {event.announcements.filter(a => !a.isHidden).slice().reverse().map((announcement, index) => (
                       <div key={index} className="bg-indigo-50/40 rounded-2xl p-6 border border-indigo-100/60 flex gap-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
                         <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 rounded-l-2xl group-hover:bg-indigo-600 transition-colors"></div>
                         <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600 flex-shrink-0 border border-indigo-50/50">
@@ -320,13 +333,63 @@ export default function EventDetails() {
               {/* Live Q&A Section */}
               <section className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-xl mt-12 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2"></div>
-                <div className="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6 relative">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
-                    <MessageSquare size={24} />
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8 border-b border-gray-100 pb-6 relative">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                      <MessageSquare size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-gray-900">Live Q&amp;A</h3>
+                      <p className="text-sm text-gray-500 font-medium mt-1">Direct channel to the event organizer.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-black text-gray-900">Live Q&A</h3>
-                    <p className="text-sm text-gray-500 font-medium mt-1">Direct channel to the event organizer.</p>
+
+                  {/* Live Presence Panel */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(() => {
+                      const organizer = presenceList.find(p => p.role === 'organizer');
+                      const volunteers = presenceList.filter(p => p.role === 'volunteer');
+                      return (
+                        <>
+                          {/* Organizer status */}
+                          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${organizer ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                            <span className={`w-2 h-2 rounded-full ${organizer ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`}></span>
+                            Organizer {organizer ? 'Online' : 'Offline'}
+                          </div>
+
+                          {/* Volunteer online pings */}
+                          {volunteers.length > 0 && (
+                            <div className="flex items-center gap-1.5">
+                              {volunteers.slice(0, 4).map((v, i) => (
+                                <div key={v.userId}
+                                  title={`${v.name} (Volunteer) — Online`}
+                                  className="relative w-8 h-8 rounded-full bg-indigo-100 border-2 border-white shadow flex items-center justify-center text-indigo-700 font-black text-xs cursor-default"
+                                >
+                                  {v.name.charAt(0).toUpperCase()}
+                                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full animate-pulse"></span>
+                                </div>
+                              ))}
+                              {volunteers.length > 4 && (
+                                <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white shadow flex items-center justify-center text-gray-500 font-bold text-xs">
+                                  +{volunteers.length - 4}
+                                </div>
+                              )}
+                              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full ml-1">
+                                {volunteers.length} Volunteer{volunteers.length > 1 ? 's' : ''} Online
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Total viewers count */}
+                          {presenceList.length > 0 && (
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                              {presenceList.length} Viewing
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 

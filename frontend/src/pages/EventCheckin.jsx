@@ -20,7 +20,11 @@ export default function EventCheckin() {
         setParticipantName(response.data.registration.participantName);
 
         // Emit socket event so dashboard updates instantly
-        const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+        const userObj = JSON.parse(localStorage.getItem('user'));
+        const token = userObj?.token || '';
+        const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+          auth: { token }
+        });
         socket.emit('mark_attendance', { registrationId, eventId });
         
         setTimeout(() => {

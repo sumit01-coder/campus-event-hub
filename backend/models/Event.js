@@ -68,7 +68,8 @@ const eventSchema = new mongoose.Schema({
     },
     announcements: [{
         message: { type: String, required: true },
-        date: { type: Date, default: Date.now }
+        date: { type: Date, default: Date.now },
+        isHidden: { type: Boolean, default: false }
     }],
     ratings: [{
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

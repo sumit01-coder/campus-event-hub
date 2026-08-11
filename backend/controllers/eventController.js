@@ -216,6 +216,45 @@ const deleteBroadcast = async (req, res) => {
     }
 };
 
+// @desc    Toggle hide/show a broadcast announcement
+// @route   PATCH /api/events/:id/broadcast/:announcementId/toggle-hide
+// @access  Private (Organizer only)
+const toggleHideBroadcast = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        const isOrganizer = event.organizerId.toString() === req.user._id.toString();
+        const isCoordinator = event.coordinators && event.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+        if (!isOrganizer && !isCoordinator) {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        const announcement = event.announcements.id(req.params.announcementId);
+        if (!announcement) {
+            return res.status(404).json({ message: 'Announcement not found' });
+        }
+
+        announcement.isHidden = !announcement.isHidden;
+        await event.save();
+
+        // Emit to attendees so they see or lose the announcement live
+        if (req.io) {
+            if (announcement.isHidden) {
+                req.io.to(req.params.id.toString()).emit('delete_announcement', req.params.announcementId);
+            } else {
+                req.io.to(req.params.id.toString()).emit('new_announcement', announcement);
+            }
+        }
+
+        res.json({ message: `Announcement ${announcement.isHidden ? 'hidden' : 'visible'}`, announcement });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
 // @desc    Rate an event
 // @route   POST /api/events/:id/rate
 // @access  Private
@@ -350,6 +389,7 @@ module.exports = {
     deleteEvent,
     broadcastMessage,
     deleteBroadcast,
+    toggleHideBroadcast,
     rateEvent,
     addCoordinator,
     removeCoordinator

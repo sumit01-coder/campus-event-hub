@@ -23,6 +23,9 @@ export default function EventQueries() {
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
   const [broadcastMessageText, setBroadcastMessageText] = useState('');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [presenceList, setPresenceList] = useState([]);
+  const [isBroadcastHistoryOpen, setIsBroadcastHistoryOpen] = useState(true);
+  const [isQueriesOpen, setIsQueriesOpen] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,9 +44,17 @@ export default function EventQueries() {
     };
     fetchData();
 
-    // Connect to WebSocket
-    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+    // Connect to WebSocket with auth token
+    const userObj = JSON.parse(localStorage.getItem('user'));
+    const token = userObj?.token || '';
+    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      auth: { token }
+    });
     setSocket(newSocket);
+
+    newSocket.on('connect_error', (err) => {
+      console.warn('Socket connection error:', err.message);
+    });
 
     newSocket.on('connect', () => {
       newSocket.emit('join_event', id);
@@ -56,6 +67,10 @@ export default function EventQueries() {
 
     newSocket.on('query_resolved', (updatedQuery) => {
       setQueries(prev => prev.map(q => q._id === updatedQuery._id ? updatedQuery : q));
+    });
+
+    newSocket.on('presence_update', (users) => {
+      setPresenceList(users);
     });
 
     return () => newSocket.close();
@@ -109,6 +124,21 @@ export default function EventQueries() {
     }
   };
 
+  const handleToggleHide = async (announcementId) => {
+    try {
+      const { data } = await api.patch(`/events/${id}/broadcast/${announcementId}/toggle-hide`);
+      toast.success(data.message);
+      setEvent(prev => ({
+        ...prev,
+        announcements: prev.announcements.map(a =>
+          a._id === announcementId ? { ...a, isHidden: data.announcement.isHidden } : a
+        )
+      }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update broadcast visibility');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
@@ -151,30 +181,41 @@ export default function EventQueries() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-4 items-center">
-                <button 
-                  onClick={() => setIsBroadcastModalOpen(true)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-2xl font-bold shadow-md hover:shadow-lg transition-all text-sm h-full"
-                >
-                  <Megaphone size={18} />
-                  Broadcast
-                </button>
-                <div className="bg-gray-50 px-4 py-3 rounded-2xl border border-gray-100 text-center">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total</p>
-                  <p className="text-2xl font-black text-gray-900">{queries.length}</p>
+                <div className="flex gap-4 items-center flex-wrap">
+                  <button 
+                    onClick={() => setIsBroadcastModalOpen(true)}
+                    className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-2xl font-bold shadow-md hover:shadow-lg transition-all text-sm h-full"
+                  >
+                    <Megaphone size={18} />
+                    Broadcast
+                  </button>
+                  {/* Live Attendee Pulse */}
+                  {presenceList.filter(p => p.role === 'attendee').length > 0 && (
+                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 rounded-2xl text-xs font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      {presenceList.filter(p => p.role === 'attendee').length} Attendee{presenceList.filter(p => p.role === 'attendee').length > 1 ? 's' : ''} Online
+                    </div>
+                  )}
+                  <div className="bg-gray-50 px-4 py-3 rounded-2xl border border-gray-100 text-center">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total</p>
+                    <p className="text-2xl font-black text-gray-900">{queries.length}</p>
+                  </div>
+                  <div className="bg-orange-50 px-4 py-3 rounded-2xl border border-orange-100 text-center">
+                    <p className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-1">Unresolved</p>
+                    <p className="text-2xl font-black text-orange-600">{unresolvedCount}</p>
+                  </div>
                 </div>
-                <div className="bg-orange-50 px-4 py-3 rounded-2xl border border-orange-100 text-center">
-                  <p className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-1">Unresolved</p>
-                  <p className="text-2xl font-black text-orange-600">{unresolvedCount}</p>
-                </div>
-              </div>
             </div>
 
             {/* Broadcast History Section */}
             {event?.announcements && event.announcements.length > 0 && (
-              <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-xl mb-12 relative overflow-hidden">
+              <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl mb-12 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
+                {/* Clickable header to expand/collapse */}
+                <button
+                  onClick={() => setIsBroadcastHistoryOpen(prev => !prev)}
+                  className="w-full flex items-center justify-between p-8 pb-4 text-left group"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shadow-inner">
                       <Megaphone size={24} />
@@ -184,40 +225,141 @@ export default function EventQueries() {
                       <p className="text-sm font-medium text-gray-500">Manage your past announcements to attendees</p>
                     </div>
                   </div>
-                  <div className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 text-indigo-700 font-bold text-sm">
-                    {event.announcements.length} {event.announcements.length === 1 ? 'Message' : 'Messages'}
+                  <div className="flex items-center gap-3">
+                    <div className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 text-indigo-700 font-bold text-sm">
+                      {event.announcements.length} {event.announcements.length === 1 ? 'Message' : 'Messages'}
+                    </div>
+                    {/* Chevron icon */}
+                    <div className={`w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 transition-transform duration-300 group-hover:bg-gray-100 ${isBroadcastHistoryOpen ? 'rotate-180' : 'rotate-0'}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-3 custom-scrollbar">
+                </button>
+
+                {/* Collapsible body */}
+                <div className={`overflow-hidden transition-all duration-400 ease-in-out ${
+                  isBroadcastHistoryOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+                }`}>
+                  <div className="px-8 pb-8 border-t border-gray-50">
+                    <div className="pt-5 space-y-3 max-h-[420px] overflow-y-auto pr-3 custom-scrollbar">
                   {event.announcements.slice().reverse().map((announcement, index) => (
-                    <div key={announcement._id || index} className="group bg-gray-50 hover:bg-white hover:shadow-lg rounded-2xl p-5 border border-gray-100 transition-all duration-300 flex justify-between items-start gap-4">
-                      <div className="flex gap-4 items-start flex-1">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center text-indigo-700 flex-shrink-0 shadow-sm">
-                          <Megaphone size={18} />
+                    <div
+                      key={announcement._id || index}
+                      className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
+                        announcement.isHidden
+                          ? 'bg-gray-50 border-gray-200'
+                          : 'bg-white border-indigo-50 shadow-sm'
+                      }`}
+                    >
+                      {/* Card body */}
+                      <div className="flex items-start gap-3 p-4">
+                        {/* Megaphone icon */}
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                          announcement.isHidden
+                            ? 'bg-gray-200 text-gray-400'
+                            : 'bg-indigo-100 text-indigo-600'
+                        }`}>
+                          <Megaphone size={16} />
                         </div>
-                        <div className="flex-1 pt-1">
-                          <div className="flex items-center gap-2 mb-2 text-xs font-bold">
-                            <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-widest border border-indigo-100">Live Announcement</span>
-                            <span className="text-gray-300">•</span>
-                            <span className="text-gray-400 flex items-center gap-1"><Clock size={12} /> {new Date(announcement.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {announcement.isHidden ? (
+                              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">Hidden</span>
+                            ) : (
+                              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">Live</span>
+                            )}
+                            <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                              <Clock size={10} /> {new Date(announcement.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
                           </div>
-                          <p className="text-gray-800 text-base leading-relaxed font-medium">{announcement.message}</p>
+                          <p className={`text-sm leading-relaxed font-medium break-words ${
+                            announcement.isHidden ? 'text-gray-400 line-through' : 'text-gray-800'
+                          }`}>
+                            {announcement.message}
+                          </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteBroadcast(announcement._id)}
-                        className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-xl transition-all opacity-0 group-hover:opacity-100 shadow-sm border border-transparent hover:border-red-100"
-                        title="Delete Broadcast"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                      </button>
+
+                      {/* Action bar — always visible */}
+                      <div className={`flex items-center justify-between px-4 py-2 border-t ${
+                        announcement.isHidden ? 'border-gray-200 bg-gray-100/50' : 'border-indigo-50/80 bg-indigo-50/30'
+                      }`}>
+                        {/* Hide / Show toggle pill */}
+                        <button
+                          onClick={() => handleToggleHide(announcement._id)}
+                          className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
+                            announcement.isHidden
+                              ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                              : 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                          }`}
+                        >
+                          {announcement.isHidden ? (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                              Show to Attendees
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                              Hide from Attendees
+                            </>
+                          )}
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => handleDeleteBroadcast(announcement._id)}
+                          title="Delete permanently"
+                          className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border text-red-500 bg-red-50 border-red-200 hover:bg-red-100 transition-all"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
-                </div>
+                    </div>{/* scrollable list */}
+                  </div>{/* inner padding div */}
+                </div>{/* collapsible wrapper */}
               </div>
             )}
 
-            <div className="space-y-4">
+            {/* Attendee Queries Section */}
+            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl mb-12 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+              {/* Clickable header to expand/collapse */}
+              <button
+                onClick={() => setIsQueriesOpen(prev => !prev)}
+                className="w-full flex items-center justify-between p-8 pb-4 text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner">
+                    <MessageSquare size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-gray-900">Attendee Queries</h2>
+                    <p className="text-sm font-medium text-gray-500">Respond to questions in real-time</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 text-blue-700 font-bold text-sm">
+                    {queries.length} {queries.length === 1 ? 'Query' : 'Queries'}
+                  </div>
+                  {/* Chevron icon */}
+                  <div className={`w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 transition-transform duration-300 group-hover:bg-gray-100 ${isQueriesOpen ? 'rotate-180' : 'rotate-0'}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                </div>
+              </button>
+
+              {/* Collapsible body */}
+              <div className={`overflow-hidden transition-all duration-400 ease-in-out ${
+                isQueriesOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
+              }`}>
+                <div className="px-8 pb-8 border-t border-gray-50">
+                  <div className="pt-5 space-y-4 max-h-[600px] overflow-y-auto pr-3 custom-scrollbar">
               {queries.length === 0 ? (
                 <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-gray-200">
                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
@@ -309,6 +451,9 @@ export default function EventQueries() {
                   </div>
                 ))
               )}
+                  </div>{/* scrollable list */}
+                </div>{/* inner padding div */}
+              </div>{/* collapsible wrapper */}
             </div>
 
           </div>

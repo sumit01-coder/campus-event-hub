@@ -122,12 +122,41 @@ io.use(async (socket, next) => {
     }
 });
 
+// Track presence: { eventId -> Set of { userId, name, role } }
+const eventPresence = new Map();
+
 io.on('connection', (socket) => {
     console.log('User connected via socket:', socket.id, 'User:', socket.user.email);
 
-    socket.on('join_event', (eventId) => {
+    socket.on('join_event', async (eventId) => {
         socket.join(eventId);
+        socket.currentEventId = eventId;
         console.log(`Socket ${socket.id} joined event room: ${eventId}`);
+
+        // Determine role in this event
+        const event = await Event.findById(eventId).select('organizerId coordinators');
+        let role = 'attendee';
+        if (event) {
+            if (event.organizerId.toString() === socket.user._id.toString()) {
+                role = 'organizer';
+            } else if (event.coordinators && event.coordinators.some(c => c.userId.toString() === socket.user._id.toString())) {
+                role = 'volunteer';
+            }
+        }
+        socket.eventRole = role;
+
+        // Add to presence map
+        if (!eventPresence.has(eventId)) eventPresence.set(eventId, new Map());
+        eventPresence.get(eventId).set(socket.user._id.toString(), {
+            userId: socket.user._id.toString(),
+            name: socket.user.name,
+            role,
+            socketId: socket.id
+        });
+
+        // Emit full presence list to all in room
+        const presentUsers = Array.from(eventPresence.get(eventId).values());
+        io.to(eventId).emit('presence_update', presentUsers);
     });
     
     socket.on('join_user', (userId) => {
@@ -317,6 +346,13 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
+
+        // Remove from presence and notify room
+        if (socket.currentEventId && eventPresence.has(socket.currentEventId)) {
+            eventPresence.get(socket.currentEventId).delete(socket.user._id.toString());
+            const presentUsers = Array.from(eventPresence.get(socket.currentEventId).values());
+            io.to(socket.currentEventId).emit('presence_update', presentUsers);
+        }
     });
 });
 

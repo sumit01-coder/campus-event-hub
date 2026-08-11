@@ -31,8 +31,12 @@ export default function Navbar() {
     };
     fetchNotifications();
 
-    // Connect to socket
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+    // Connect to socket with auth token
+    const userObj = JSON.parse(localStorage.getItem('user'));
+    const token = userObj?.token || '';
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      auth: { token }
+    });
     socket.on('connect', () => {
       socket.emit('join_user', user._id);
     });

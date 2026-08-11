@@ -38,7 +38,11 @@ export default function EventRegistrations() {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+    const userObj = JSON.parse(localStorage.getItem('user'));
+    const token = userObj?.token || '';
+    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+      auth: { token }
+    });
     setSocket(newSocket);
     return () => newSocket.close();
   }, []);
