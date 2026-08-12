@@ -51,8 +51,9 @@ export default function Home() {
       ...card,
       title: event.title,
       date: new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      image: event.bannerUrl || card.image,
-      attendees: event.registrations?.length || event.currentCapacity || card.attendees
+      image: event.image || event.bannerUrl || card.image,
+      attendees: event.registeredCount ?? event.registrations?.length ?? 0,
+      capacity: event.capacity ?? null
     };
   }).filter(Boolean);
 
@@ -155,7 +156,7 @@ export default function Home() {
                       <Calendar size={10} className="mr-1 shrink-0" /> {card.date}
                     </div>
                     <div className="flex items-center text-[10px] text-gray-500 mt-0.5 truncate">
-                      <Users size={10} className="mr-1 shrink-0" /> {card.attendees}+ Going
+                      <Users size={10} className="mr-1 shrink-0" /> {card.attendees}{card.capacity ? ` / ${card.capacity}` : ''} Going
                     </div>
                   </div>
                 </div>

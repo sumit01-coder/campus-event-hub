@@ -13,6 +13,7 @@ import QRScannerModal from '../components/QRScannerModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import HackathonHubTab from '../components/HackathonHubTab';
+import ResultsHubTab from '../components/ResultsHubTab';
 
 export default function EventRegistrations() {
   const { id } = useParams();
@@ -346,6 +347,14 @@ export default function EventRegistrations() {
                   Hackathon Hub
                 </button>
               )}
+              {event.isHackathon && (
+                <button 
+                  onClick={() => setActiveTab('results')}
+                  className={`py-4 px-6 font-bold text-sm border-b-2 transition-colors ${activeTab === 'results' ? 'border-amber-600 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                  Results & Winners
+                </button>
+              )}
             </div>
 
             {/* Body */}
@@ -563,6 +572,8 @@ export default function EventRegistrations() {
               </div>
             ) : activeTab === 'hackathon' ? (
               <HackathonHubTab event={event} setEvent={setEvent} registrations={registrations} setRegistrations={setRegistrations} />
+            ) : activeTab === 'results' ? (
+              <ResultsHubTab event={event} setEvent={setEvent} registrations={registrations} />
             ) : null}
           </div>
         )}

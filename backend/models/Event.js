@@ -89,7 +89,18 @@ const eventSchema = new mongoose.Schema({
         title: { type: String, required: true },
         description: { type: String, required: true },
         maxTeams: { type: Number, default: 0 } // 0 = unlimited
-    }]
+    }],
+    maxPreferences: {
+        type: Number,
+        default: 3
+    },
+    results: {
+        isReleased: { type: Boolean, default: false },
+        winners: [{
+            position: { type: String, required: true }, // e.g., "1st Place", "Runner Up", "Best UI"
+            registrationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Registration' }
+        }]
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Event', eventSchema);

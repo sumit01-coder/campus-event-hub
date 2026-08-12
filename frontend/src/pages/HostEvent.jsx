@@ -39,7 +39,8 @@ export default function HostEvent() {
     registrationDeadline: '',
     participationType: 'individual',
     maxGroupSize: 1,
-    isHackathon: false
+    isHackathon: false,
+    maxPreferences: 3
   });
 
   // Verification Checks
@@ -530,6 +531,24 @@ export default function HostEvent() {
                     </p>
                   </div>
                 </div>
+
+                {formData.isHackathon && (
+                  <div className="mt-4 p-4 border border-purple-100 rounded-xl bg-white shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Max Preferences Allowed <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        name="maxPreferences" 
+                        value={formData.maxPreferences} 
+                        onChange={handleChange} 
+                        min="0"
+                        required={formData.isHackathon}
+                        className="w-full bg-white border border-gray-200 py-2.5 px-3 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm transition-all" 
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1">How many problem statements can a team/participant select? (0 = unlimited)</p>
+                  </div>
+                )}
               </div>
 
               <hr className="border-gray-100" />

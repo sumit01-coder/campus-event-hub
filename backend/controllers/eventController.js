@@ -1,7 +1,12 @@
 const Event = require('../models/Event');
 const Registration = require('../models/Registration');
 const Notification = require('../models/Notification');
-const { sendBroadcastEmail } = require('../services/emailService');// @desc    Get all events
+const { sendBroadcastEmail } = require('../services/emailService');
+const { exec } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+
+// @desc    Get all events
 // @route   GET /api/events
 // @access  Public
 const getEvents = async (req, res) => {
@@ -404,6 +409,274 @@ const removeCoordinator = async (req, res) => {
     }
 };
 
+// @desc    Extract problem statements from PDF
+// @route   POST /api/events/extract-problems
+// @access  Private (Organizer)
+const extractProblemStatements = async (req, res) => {
+    const { exec } = require('child_process');
+    const path = require('path');
+    const fs = require('fs');
+
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No PDF file uploaded' });
+        }
+
+        const pdfPath = req.file.path;
+        const scriptPath = path.join(__dirname, '../scripts/extract_problems.py');
+        
+        exec(`python "${scriptPath}" "${pdfPath}"`, (error, stdout, stderr) => {
+            // Delete the temporary file
+            fs.unlink(pdfPath, (err) => {
+                if (err) console.error("Error deleting temp pdf:", err);
+            });
+
+            if (error) {
+                console.error(`exec error: ${error}`);
+                return res.status(500).json({ message: 'Failed to extract PDF data' });
+            }
+            
+            try {
+                const result = JSON.parse(stdout);
+                if (result.success) {
+                    res.json(result.data);
+                } else {
+                    res.status(400).json({ message: result.error || 'Failed to parse PDF' });
+        const isOrganizer = event.organizerId.toString() === req.user._id.toString();
+        const isCoordinator = event.coordinators && event.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+        if (!isOrganizer && !isCoordinator) {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        const announcement = event.announcements.id(req.params.announcementId);
+        if (!announcement) {
+            return res.status(404).json({ message: 'Announcement not found' });
+        }
+
+        announcement.isHidden = !announcement.isHidden;
+        await event.save();
+
+        // Emit to attendees so they see or lose the announcement live
+        if (req.io) {
+            if (announcement.isHidden) {
+                req.io.to(req.params.id.toString()).emit('delete_announcement', req.params.announcementId);
+            } else {
+                req.io.to(req.params.id.toString()).emit('new_announcement', announcement);
+            }
+        }
+
+        res.json({ message: `Announcement ${announcement.isHidden ? 'hidden' : 'visible'}`, announcement });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Rate an event
+// @route   POST /api/events/:id/rate
+// @access  Private
+const rateEvent = async (req, res) => {
+    try {
+        const { rating, review } = req.body;
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ message: 'Valid rating (1-5) is required' });
+        }
+
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        // Check if event is in the past
+        if (new Date(event.date) >= new Date()) {
+            return res.status(400).json({ message: 'You can only rate events that have already passed' });
+        }
+
+        // Check if user is registered for the event
+        const isRegistered = await Registration.findOne({ eventId: event._id, userId: req.user._id });
+        if (!isRegistered) {
+            return res.status(403).json({ message: 'Only attendees can rate this event' });
+        }
+
+        // Check if user already rated
+        const existingRating = event.ratings.find(r => r.userId.toString() === req.user._id.toString());
+        if (existingRating) {
+            return res.status(400).json({ message: 'You have already rated this event' });
+        }
+
+        event.ratings.push({ userId: req.user._id, rating, review });
+        await event.save();
+
+        res.status(201).json({ message: 'Rating submitted successfully', ratings: event.ratings });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Add a coordinator to an event
+// @route   POST /api/events/:id/coordinators
+// @access  Private (Organizer only)
+const addCoordinator = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        if (event.organizerId.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'Only the main organizer can add coordinators' });
+        }
+
+        const User = require('../models/User');
+        const userToAdd = await User.findOne({ email });
+        
+        if (!userToAdd) {
+            return res.status(404).json({ message: 'User with this email not found on the platform' });
+        }
+
+        if (userToAdd._id.toString() === req.user._id.toString()) {
+            return res.status(400).json({ message: 'You are already the main organizer of this event' });
+        }
+
+        const alreadyExists = event.coordinators.some(c => c.userId.toString() === userToAdd._id.toString());
+        if (alreadyExists) {
+            return res.status(400).json({ message: 'User is already a coordinator for this event' });
+        }
+
+        // Check if user is already registered as a participant for this event
+        const Registration = require('../models/Registration');
+        const isParticipant = await Registration.findOne({ eventId: event._id, userId: userToAdd._id, status: { $ne: 'cancelled' } });
+        if (isParticipant) {
+            return res.status(400).json({ message: 'Cannot assign user as volunteer: they are already registered as a participant for this event.' });
+        }
+
+        event.coordinators.push({
+            userId: userToAdd._id,
+            name: userToAdd.name,
+            email: userToAdd.email,
+            role: 'volunteer'
+        });
+
+        await event.save();
+
+        // Add volunteer capability to user
+        userToAdd.capabilities.volunteer = true;
+        await userToAdd.save();
+
+        res.status(200).json({ message: 'Coordinator added successfully', coordinators: event.coordinators });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Remove a coordinator from an event
+// @route   DELETE /api/events/:id/coordinators/:userId
+// @access  Private (Organizer only)
+const removeCoordinator = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        if (event.organizerId.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'Only the main organizer can remove coordinators' });
+        }
+
+        event.coordinators = event.coordinators.filter(c => c.userId.toString() !== req.params.userId);
+        
+        await event.save();
+
+        // Check if user is still a coordinator in other events
+        const User = require('../models/User');
+        const otherEvents = await Event.countDocuments({ 'coordinators.userId': req.params.userId });
+        if (otherEvents === 0) {
+            await User.findByIdAndUpdate(req.params.userId, { 'capabilities.volunteer': false });
+        }
+
+        res.status(200).json({ message: 'Coordinator removed successfully', coordinators: event.coordinators });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Extract problem statements from PDF
+// @route   POST /api/events/extract-problems
+// @access  Private (Organizer)
+const extractProblemStatements = async (req, res) => {
+    const { exec } = require('child_process');
+    const path = require('path');
+    const fs = require('fs');
+
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No PDF file uploaded' });
+        }
+
+        const pdfPath = req.file.path;
+        const scriptPath = path.join(__dirname, '../scripts/extract_problems.py');
+        
+        exec(`python "${scriptPath}" "${pdfPath}"`, (error, stdout, stderr) => {
+            // Delete the temporary file
+            fs.unlink(pdfPath, (err) => {
+                if (err) console.error("Error deleting temp pdf:", err);
+            });
+
+            if (error) {
+                console.error(`exec error: ${error}`);
+                return res.status(500).json({ message: 'Failed to extract PDF data' });
+            }
+            
+            try {
+                const result = JSON.parse(stdout);
+                if (result.success) {
+                    res.json(result.data);
+                } else {
+                    res.status(400).json({ message: result.error || 'Failed to parse PDF' });
+                }
+            } catch (parseError) {
+                console.error("JSON parse error:", stdout);
+                res.status(500).json({ message: 'Invalid output from python script' });
+            }
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Update and release event results
+// @route   PUT /api/events/:id/results
+// @access  Private (Organizer only)
+const releaseResults = async (req, res) => {
+    try {
+        const { isReleased, winners } = req.body;
+        const event = await Event.findById(req.params.id);
+
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        if (event.organizerId.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'Only the organizer can release results' });
+        }
+
+        event.results = {
+            isReleased: isReleased !== undefined ? isReleased : event.results?.isReleased,
+            winners: winners || event.results?.winners || []
+        };
+
+        await event.save();
+        res.status(200).json(event);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
 module.exports = {
     getEvents,
     getEventById,
@@ -415,5 +688,7 @@ module.exports = {
     toggleHideBroadcast,
     rateEvent,
     addCoordinator,
-    removeCoordinator
+    removeCoordinator,
+    extractProblemStatements,
+    releaseResults
 };

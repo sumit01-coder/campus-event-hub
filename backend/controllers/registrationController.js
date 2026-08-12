@@ -168,6 +168,9 @@ const getMyRegistrations = async (req, res) => {
                     joinedTeamCode: r.joinedTeamCode,
                     isTeamLeader: r.isTeamLeader,
                     paymentStatus: r.paymentStatus,
+                    preferences: r.preferences,
+                    assignedProblemId: r.assignedProblemId,
+                    projectSubmission: r.projectSubmission,
                     createdAt: r.createdAt
                 }
             }));
@@ -496,7 +499,6 @@ const submitProject = async (req, res) => {
         };
         
         await registration.save();
-        res.json(registration);
         res.json(registration);
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });

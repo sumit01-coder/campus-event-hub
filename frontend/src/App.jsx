@@ -33,6 +33,7 @@ import EventRegistrations from './pages/EventRegistrations';
 import EventQueries from './pages/EventQueries';
 import EventCheckin from './pages/EventCheckin';
 import Badges from './pages/Badges';
+import MyHackathons from './pages/MyHackathons';
 import Home from './pages/Home';
 
 // Admin imports
@@ -65,6 +66,7 @@ function App() {
             <Route path="/events" element={<ProtectedRoute><MyEvents /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/badges" element={<ProtectedRoute><Badges /></ProtectedRoute>} />
+            <Route path="/my-hackathons" element={<ProtectedRoute><MyHackathons /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/host" element={<ProtectedRoute><HostEvent /></ProtectedRoute>} />
             <Route path="/checkin/:eventId/:registrationId" element={<ProtectedRoute><EventCheckin /></ProtectedRoute>} />

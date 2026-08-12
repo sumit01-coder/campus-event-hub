@@ -1,8 +1,9 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Calendar, Users, Settings, LogOut, PlusCircle, Building, Menu, ChevronRight, Award } from 'lucide-react';
+import { Home, Calendar, Users, Settings, LogOut, PlusCircle, Building, Menu, ChevronRight, Award, Code } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { SidebarContext } from '../context/SidebarContext';
+import api from '../services/api';
 
 export default function Sidebar() {
   const location = useLocation();
@@ -26,7 +27,27 @@ export default function Sidebar() {
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
-  const navItems = [...baseNavItems, ...organizerNavItems];
+  const [hasHackathons, setHasHackathons] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      // Fetch registrations to see if there are any hackathons
+      api.get('/registrations/my-registrations')
+        .then(res => {
+          const hackathons = res.data.filter(event => event.isHackathon === true);
+          if (hackathons.length > 0) {
+            setHasHackathons(true);
+          }
+        })
+        .catch(err => console.error("Sidebar failed to check hackathons", err));
+    }
+  }, [user]);
+
+  const hackathonNavItems = hasHackathons ? [
+    { name: 'My Hackathons', path: '/my-hackathons', icon: Code }
+  ] : [];
+
+  const navItems = [...baseNavItems, ...hackathonNavItems, ...organizerNavItems];
 
   const handleLogout = () => {
     logout();
