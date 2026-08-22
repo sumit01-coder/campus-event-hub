@@ -10,7 +10,7 @@ const protectAdmin = async (req, res, next) => {
             token = req.headers.authorization.split(' ')[1];
 
             // Verify token
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
             // Get admin from token (we embedded adminId instead of id to prevent token spoofing)
             if (!decoded.adminId) {

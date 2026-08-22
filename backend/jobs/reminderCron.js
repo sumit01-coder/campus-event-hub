@@ -33,6 +33,10 @@ cron.schedule('0 * * * *', async () => {
                         console.error(`Failed to send reminder email to ${reg.email}`);
                     }
                 }
+                if (reg.phone) {
+                    // SIMULATED WHATSAPP REMINDER
+                    console.log(`[WHATSAPP SIMULATION] Sending Reminder for ${event.title} to +${reg.phone}`);
+                }
             }
         }
     } catch (error) {

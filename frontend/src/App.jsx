@@ -7,42 +7,46 @@ import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Pricing from './pages/Pricing';
-import Features from './pages/Features';
-import HelpCenter from './pages/HelpCenter';
-import Guidelines from './pages/Guidelines';
-import ApiDocs from './pages/ApiDocs';
-import Blog from './pages/Blog';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsOfService from './pages/TermsOfService';
-import CookiePolicy from './pages/CookiePolicy';
-import AboutUs from './pages/AboutUs';
-import Contact from './pages/Contact';
-import Careers from './pages/Careers';
-import Onboarding from './pages/Onboarding';
-import MyEvents from './pages/MyEvents';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import HostEvent from './pages/HostEvent';
-import HostedEvents from './pages/HostedEvents';
-import EventDetails from './pages/EventDetails';
-import EventRegistrations from './pages/EventRegistrations';
-import EventQueries from './pages/EventQueries';
-import EventCheckin from './pages/EventCheckin';
-import Badges from './pages/Badges';
-import MyHackathons from './pages/MyHackathons';
-import Home from './pages/Home';
+import { initErrorTracker } from './utils/errorTracker';
+
+initErrorTracker();
+
+const Login = React.lazy(() => import('./pages/Login'));
+const Register = React.lazy(() => import('./pages/Register'));
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Pricing = React.lazy(() => import('./pages/Pricing'));
+const Features = React.lazy(() => import('./pages/Features'));
+const HelpCenter = React.lazy(() => import('./pages/HelpCenter'));
+const Guidelines = React.lazy(() => import('./pages/Guidelines'));
+const ApiDocs = React.lazy(() => import('./pages/ApiDocs'));
+const Blog = React.lazy(() => import('./pages/Blog'));
+const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = React.lazy(() => import('./pages/TermsOfService'));
+const CookiePolicy = React.lazy(() => import('./pages/CookiePolicy'));
+const AboutUs = React.lazy(() => import('./pages/AboutUs'));
+const Contact = React.lazy(() => import('./pages/Contact'));
+const Careers = React.lazy(() => import('./pages/Careers'));
+const Onboarding = React.lazy(() => import('./pages/Onboarding'));
+const MyEvents = React.lazy(() => import('./pages/MyEvents'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const HostEvent = React.lazy(() => import('./pages/HostEvent'));
+const HostedEvents = React.lazy(() => import('./pages/HostedEvents'));
+const EventDetails = React.lazy(() => import('./pages/EventDetails'));
+const EventRegistrations = React.lazy(() => import('./pages/EventRegistrations'));
+const EventQueries = React.lazy(() => import('./pages/EventQueries'));
+const EventCheckin = React.lazy(() => import('./pages/EventCheckin'));
+const Badges = React.lazy(() => import('./pages/Badges'));
+const MyHackathons = React.lazy(() => import('./pages/MyHackathons'));
+const Home = React.lazy(() => import('./pages/Home'));
 
 // Admin imports
-import AdminLogin from './pages/admin/AdminLogin';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminOrganizers from './pages/admin/AdminOrganizers';
-import AdminPlaceholder from './pages/admin/AdminPlaceholder';
-import AdminLogs from './pages/admin/AdminLogs';
+const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin'));
+const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminUsers = React.lazy(() => import('./pages/admin/AdminUsers'));
+const AdminOrganizers = React.lazy(() => import('./pages/admin/AdminOrganizers'));
+const AdminPlaceholder = React.lazy(() => import('./pages/admin/AdminPlaceholder'));
+const AdminLogs = React.lazy(() => import('./pages/admin/AdminLogs'));
 
 function AdminRoute({ children }) {
   const { admin, loading } = React.useContext(AdminContext);
@@ -57,6 +61,7 @@ function App() {
         <SidebarProvider>
           <Router>
             <Toaster position="top-right" />
+          <React.Suspense fallback={<div className="flex min-h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div></div>}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -120,6 +125,7 @@ function App() {
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/cookies" element={<CookiePolicy />} />
           </Routes>
+          </React.Suspense>
         </Router>
         </SidebarProvider>
       </AdminProvider>

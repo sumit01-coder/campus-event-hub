@@ -45,6 +45,9 @@ export default function AdminSidebar() {
         <div className="mt-2 text-[10px] text-indigo-500 font-bold uppercase tracking-[0.2em] ml-12">
           Admin Portal
         </div>
+        <div className="mt-1 text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-12">
+          Blueprint by Sumit Patel
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 custom-scrollbar">

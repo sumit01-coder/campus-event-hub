@@ -14,21 +14,37 @@ export default function Dashboard() {
   const { isOpen } = useContext(SidebarContext);
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const { data } = await api.get('/events');
-        setEvents(data);
-      } catch (error) {
-        toast.error('Failed to load events');
-      } finally {
-        setIsLoading(false);
+  const fetchEvents = async (pageNumber = 1, isLoadMore = false) => {
+    if (isLoadMore) setIsLoadingMore(true);
+    else setIsLoading(true);
+    
+    try {
+      const { data } = await api.get(`/events?page=${pageNumber}&limit=20`);
+      
+      if (isLoadMore) {
+        setEvents(prev => [...prev, ...data.events]);
+      } else {
+        setEvents(data.events || []); // fallback in case data structure is old
       }
-    };
-    fetchEvents();
+      
+      setHasMore(data.page < data.pages);
+      setPage(data.page);
+    } catch (error) {
+      toast.error('Failed to load events');
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents(1);
   }, []);
 
   return (
@@ -178,10 +194,24 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-              {events.map(event => (
-                <EventCard key={event._id} event={event} />
-              ))}
+            <div className="mb-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.map(event => (
+                  <EventCard key={event._id} event={event} />
+                ))}
+              </div>
+              {hasMore && (
+                <div className="flex justify-center mt-8">
+                  <button
+                    onClick={() => fetchEvents(page + 1, true)}
+                    disabled={isLoadingMore}
+                    className="flex items-center gap-2 bg-white border border-gray-200 px-6 py-3 rounded-full text-sm font-bold text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                  >
+                    {isLoadingMore ? <Loader2 className="animate-spin" size={18} /> : null}
+                    {isLoadingMore ? 'Loading...' : 'Load More Events'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

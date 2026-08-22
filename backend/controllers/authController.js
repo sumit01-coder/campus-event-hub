@@ -5,7 +5,7 @@ const emailValidator = require('deep-email-validator');
 
 // Generate JWT
 const generateToken = (id, capabilities) => {
-    return jwt.sign({ id, capabilities }, process.env.JWT_SECRET || 'fallback_secret', {
+    return jwt.sign({ id, capabilities }, process.env.JWT_SECRET, {
         expiresIn: '30d',
     });
 };

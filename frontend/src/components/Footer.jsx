@@ -107,7 +107,8 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-gray-100 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-xs font-semibold">
-            &copy; {currentYear} CampusConnect Hub. All rights reserved. Developed by <a href="https://www.virtuallabsimulator.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:text-indigo-600 hover:underline">Virtual Lab Simulator</a>. Visit <a href="https://virtuallabsimaultor.com" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 hover:underline">virtuallabsimaultor.com</a>
+            &copy; {currentYear} CampusConnect Hub. All rights reserved. <br/>
+            <span className="font-extrabold text-indigo-600 mt-1 inline-block">Developer Blueprint: Sumit Patel</span>
           </p>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 cursor-pointer text-gray-600 hover:text-gray-900 transition-colors text-xs font-bold">

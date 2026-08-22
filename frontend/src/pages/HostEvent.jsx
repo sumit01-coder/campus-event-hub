@@ -181,7 +181,7 @@ export default function HostEvent() {
       
       // Update form data with the new URL (prepend backend URL if needed, but relative should work if proxy handles it)
       // Actually we will use the full backend URL in case images break, or just relative
-      setFormData({ ...formData, image: `http://localhost:5000${data.imageUrl}` });
+      setFormData({ ...formData, image: data.imageUrl });
       toast.success('Image uploaded successfully!');
     } catch (error) {
       console.error('Upload error:', error);

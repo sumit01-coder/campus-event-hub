@@ -231,11 +231,39 @@ export default function AdminLogs() {
                 </div>
               )}
               {selectedLog.details && Object.keys(selectedLog.details).length > 0 && (
-                <div>
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Additional Details</label>
-                  <pre className="bg-gray-900 text-green-400 p-4 rounded-xl text-xs overflow-x-auto">
-                    {JSON.stringify(selectedLog.details, null, 2)}
-                  </pre>
+                <div className="space-y-4">
+                  {(selectedLog.details.line || selectedLog.details.errorCode) && (
+                    <div className="grid grid-cols-2 gap-4 bg-red-50 p-3 rounded-lg border border-red-100">
+                      {selectedLog.details.line && (
+                        <div>
+                          <label className="text-xs font-bold text-red-600 uppercase tracking-wider block mb-1">Line / File</label>
+                          <p className="text-sm font-mono text-red-900 break-all">{selectedLog.details.fileName ? `${selectedLog.details.fileName}:${selectedLog.details.line}` : `Line ${selectedLog.details.line}`}</p>
+                        </div>
+                      )}
+                      {selectedLog.details.errorCode && (
+                        <div>
+                          <label className="text-xs font-bold text-red-600 uppercase tracking-wider block mb-1">Error Code</label>
+                          <p className="text-sm font-mono text-red-900">{selectedLog.details.errorCode}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedLog.details.stack && (
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Stack Trace</label>
+                      <pre className="bg-gray-900 text-red-400 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed border border-gray-800">
+                        {selectedLog.details.stack}
+                      </pre>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Raw Payload Data</label>
+                    <pre className="bg-gray-50 text-gray-600 p-4 rounded-xl text-xs overflow-x-auto border border-gray-200">
+                      {JSON.stringify(selectedLog.details, null, 2)}
+                    </pre>
+                  </div>
                 </div>
               )}
             </div>

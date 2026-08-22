@@ -12,13 +12,14 @@ const transporter = nodemailer.createTransport({
 });
 
 // Generic send email function
-const sendEmail = async ({ to, subject, html }) => {
+const sendEmail = async ({ to, subject, html, attachments }) => {
     try {
         const info = await transporter.sendMail({
             from: `"CampusEventHub" <${process.env.SMTP_USER || 'noreply@campuseventhub.com'}>`,
             to,
             subject,
             html,
+            attachments
         });
 
         console.log("Message sent: %s", info.messageId);
@@ -33,7 +34,7 @@ const sendEmail = async ({ to, subject, html }) => {
     }
 };
 
-const sendTicketEmail = async (userEmail, userName, eventTitle, ticketId, qrCodeDataUrl) => {
+const sendTicketEmail = async (userEmail, userName, eventTitle, ticketId, qrCodeDataUrl, icsAttachment = null) => {
     const html = `
         <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; border-radius: 10px;">
             <div style="background-color: #4f46e5; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
@@ -58,7 +59,14 @@ const sendTicketEmail = async (userEmail, userName, eventTitle, ticketId, qrCode
     return sendEmail({
         to: userEmail,
         subject: `Your Ticket: ${eventTitle}`,
-        html
+        html,
+        attachments: icsAttachment ? [
+            {
+                filename: 'event.ics',
+                content: icsAttachment,
+                contentType: 'text/calendar'
+            }
+        ] : []
     });
 };
 

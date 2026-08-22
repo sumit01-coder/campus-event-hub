@@ -26,3 +26,6 @@ This project relies on living documentation. Please refer to the following files
 
 ## UI/UX Guidelines
 The UI is strictly designed using the [ui-ux-pro-max-skill](../ui-ux-pro-max-skill) toolkit. AI developers contributing to this project should use the toolkit's CLI search to pull color palettes, typography, and layout guidelines before building new components.
+
+---
+**Developer Blueprint: Sumit Patel**

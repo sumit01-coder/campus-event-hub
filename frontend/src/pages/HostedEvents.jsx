@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import EditEventModal from '../components/EditEventModal';
 import ManageCoordinatorsModal from '../components/ManageCoordinatorsModal';
 import { SidebarContext } from '../context/SidebarContext';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function HostedEvents() {
   const { user } = useContext(AuthContext);
@@ -31,7 +32,7 @@ export default function HostedEvents() {
           api.get('/payments/organizer/stats').catch(() => ({ data: null }))
         ]);
         
-        setEvents(eventsRes.data);
+        setEvents(eventsRes.data.events || []);
         if (statsRes && statsRes.data) {
           setStats(statsRes.data);
         }
@@ -94,17 +95,48 @@ export default function HostedEvents() {
               <h3 className="text-3xl font-extrabold text-gray-900">₹{stats.totalGrossRevenue.toLocaleString()}</h3>
             </div>
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-              <p className="text-gray-500 font-medium mb-1">Successful Payments</p>
-              <h3 className="text-3xl font-extrabold text-green-600">{stats.successfulPayments}</h3>
+              <p className="text-gray-500 font-medium mb-1">Pending Verification</p>
+              <h3 className="text-3xl font-extrabold text-orange-500">{stats.pendingPayments}</h3>
             </div>
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-              <p className="text-gray-500 font-medium mb-1">Completed Transfers</p>
-              <h3 className="text-3xl font-extrabold text-indigo-600">{stats.completedTransfers}</h3>
-              <p className="text-sm text-gray-400 mt-1">{stats.pendingTransfers} pending</p>
+              <p className="text-gray-500 font-medium mb-1">Rejected Payments</p>
+              <h3 className="text-3xl font-extrabold text-red-500">{stats.rejectedPayments}</h3>
             </div>
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
               <p className="text-gray-500 font-medium mb-1">Refunds</p>
               <h3 className="text-3xl font-extrabold text-red-600">{stats.refunds}</h3>
+            </div>
+          </div>
+        )}
+
+        {/* Analytics Chart */}
+        {events.length > 0 && (
+          <div className="mb-10 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">Event Performance Analytics</h3>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={events.map(e => ({ name: e.title, Views: e.pageViews || 0, Registrations: e.registeredCount || 0 }))}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorRegs" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="Views" stroke="#3B82F6" fillOpacity={1} fill="url(#colorViews)" />
+                  <Area type="monotone" dataKey="Registrations" stroke="#10B981" fillOpacity={1} fill="url(#colorRegs)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}

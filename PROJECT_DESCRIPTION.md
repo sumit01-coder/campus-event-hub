@@ -32,6 +32,17 @@ CampusEventHub acts as a fortified, automated, all-in-one ecosystem:
 
 ---
 
+## 🧠 Development Methodology & Algorithms
+CampusEventHub was developed using modern software engineering practices and advanced algorithmic integrations to ensure a robust and scalable architecture:
+
+1. **Agile Methodology & CI/CD**: The project followed an iterative Agile development cycle, allowing for continuous integration of features like OCR identity verification and deep email validation based on ongoing testing and feedback.
+2. **MVC Architecture (Model-View-Controller)**: The backend is strictly structured using the MVC design pattern, separating business logic (Controllers), data structure (Mongoose Models), and API endpoints (Routes), ensuring high maintainability.
+3. **Fuzzy String Matching Algorithm**: Used within the Python OCR microservice (`difflib.SequenceMatcher`). This algorithm compares the extracted text from ID cards against the user's profile data, calculating a similarity ratio to intelligently approve identities even with minor typos or bad lighting.
+4. **Haar Cascade Object Detection**: Utilized via OpenCV to perform real-time liveness checks. The algorithm detects the presence of a face and evaluates image variance (blurriness) and brightness before allowing OCR processing, preventing spoofing.
+5. **Stateless JWT Authorization Algorithm**: Instead of traditional session stores, the platform uses JSON Web Tokens signed with HMAC SHA-256 for secure, stateless, and tamper-proof role-based access control (RBAC).
+
+---
+
 ## ⚙️ Core Features
 * **Advanced Authentication & Security**
   * JWT-based stateless authentication.

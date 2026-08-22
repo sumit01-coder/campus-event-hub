@@ -100,7 +100,35 @@ const eventSchema = new mongoose.Schema({
             position: { type: String, required: true }, // e.g., "1st Place", "Runner Up", "Best UI"
             registrationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Registration' }
         }]
+    },
+    likes: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    // New Features for Phase 6
+    maxCapacity: {
+        type: Number,
+        default: 0 // 0 means unlimited
+    },
+    customQuestions: [{
+        question: { type: String, required: true },
+        type: { type: String, enum: ['text', 'dropdown', 'checkbox'], default: 'text' },
+        options: [{ type: String }], // Used if type is dropdown or checkbox
+        required: { type: Boolean, default: false }
+    }],
+    ticketTiers: [{
+        name: { type: String, required: true }, // e.g., 'Early Bird', 'VIP'
+        price: { type: Number, required: true },
+        capacity: { type: Number, default: 0 } // 0 means unlimited
+    }],
+    pageViews: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
+
+// Indexes for performance
+eventSchema.index({ organizerId: 1 });
+eventSchema.index({ category: 1 });
 
 module.exports = mongoose.model('Event', eventSchema);

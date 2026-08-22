@@ -48,7 +48,7 @@ const registrationSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['registered', 'cancelled', 'attended'],
+        enum: ['registered', 'waitlisted', 'cancelled', 'attended'],
         default: 'registered'
     },
     paymentStatus: {
@@ -75,10 +75,21 @@ const registrationSchema = new mongoose.Schema({
         liveDemoLink: { type: String },
         presentationLink: { type: String },
         submittedAt: { type: Date }
-    }
+    },
+    // New Features for Phase 6
+    ticketTierId: {
+        type: mongoose.Schema.Types.ObjectId // Reference to the specific ticket tier chosen
+    },
+    customAnswers: [{
+        questionId: { type: mongoose.Schema.Types.ObjectId },
+        answer: { type: mongoose.Schema.Types.Mixed }
+    }]
 }, { timestamps: true });
 
 // Prevent duplicate registrations for the same event
 registrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
+
+// Optimize query for fetching all attendees of an event
+registrationSchema.index({ eventId: 1 });
 
 module.exports = mongoose.model('Registration', registrationSchema);

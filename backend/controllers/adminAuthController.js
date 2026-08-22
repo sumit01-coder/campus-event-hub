@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 
 // Generate JWT specifically for admin
 const generateAdminToken = (adminId, isSuperAdmin) => {
-    return jwt.sign({ adminId, isSuperAdmin }, process.env.JWT_SECRET || 'fallback_secret', {
+    return jwt.sign({ adminId, isSuperAdmin }, process.env.JWT_SECRET, {
         expiresIn: '1d', // Shorter expiry for admin tokens
     });
 };

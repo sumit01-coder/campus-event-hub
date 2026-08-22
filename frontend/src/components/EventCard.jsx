@@ -1,9 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Users, Heart, Ticket } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function EventCard({ event, onViewPass }) {
   const navigate = useNavigate();
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(event.likes?.length || 0);
+  
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && event.likes?.includes(user._id)) {
+      setIsLiked(true);
+    }
+  }, [event.likes]);
+
+  const handleLike = async (e) => {
+    e.stopPropagation();
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      toast.error('Please login to like events');
+      return;
+    }
+    
+    try {
+      // Optimistic UI update
+      setIsLiked(!isLiked);
+      setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
+      
+      await api.post(`/events/${event._id}/like`);
+    } catch (error) {
+      // Revert on error
+      setIsLiked(!isLiked);
+      setLikesCount(prev => isLiked ? prev + 1 : prev - 1);
+      toast.error('Failed to like event');
+    }
+  };
+
   // Graceful fallbacks for schema fields that might not be populated yet
   const dateStr = event.date ? new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA';
   const timeStr = event.date ? new Date(event.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'TBA';
@@ -46,7 +80,7 @@ export default function EventCard({ event, onViewPass }) {
       <div className="w-full h-48 sm:w-32 sm:h-32 rounded-[20px] bg-gray-100 relative overflow-hidden flex-shrink-0 shadow-inner">
         {event.image ? (
           <img 
-            src={event.image?.startsWith('/') ? `http://localhost:5000${event.image}` : event.image} 
+            src={event.image?.startsWith('/') ? `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}${event.image}` : event.image} 
             alt={event.title} 
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
             onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60'; }}
@@ -63,10 +97,10 @@ export default function EventCard({ event, onViewPass }) {
           </button>
         ) : (
           <button 
-            onClick={(e) => { e.stopPropagation(); /* TODO: Like event */ }}
-            className="absolute top-2 right-2 w-8 h-8 bg-white/40 backdrop-blur-md border border-white/60 rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-red-500 transition-colors z-10 shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
+            onClick={handleLike}
+            className={`absolute top-2 right-2 w-8 h-8 backdrop-blur-md border rounded-full flex items-center justify-center transition-colors z-10 shadow-[0_4px_12px_rgba(0,0,0,0.05)] ${isLiked ? 'bg-white text-red-500 border-red-100' : 'bg-white/40 border-white/60 text-gray-700 hover:bg-white hover:text-red-500'}`}
           >
-            <Heart size={14} strokeWidth={2.5} />
+            <Heart size={14} strokeWidth={2.5} className={isLiked ? 'fill-current' : ''} />
           </button>
         )}
         <div className="absolute bottom-2 right-2 bg-white/80 backdrop-blur-md border border-white/60 px-2.5 py-1 rounded-full text-[11px] font-extrabold text-gray-900 z-10 flex items-center gap-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.05)]">

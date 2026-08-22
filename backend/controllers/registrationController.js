@@ -2,6 +2,7 @@ const Registration = require('../models/Registration');
 const Event = require('../models/Event');
 const Notification = require('../models/Notification');
 const { sendTicketEmail } = require('../services/emailService');
+const ics = require('ics');
 
 // Utility function to generate a random 6-character alphanumeric code
 const generateTeamCode = () => {
@@ -58,6 +59,15 @@ const registerForEvent = async (req, res) => {
             isTeamLeader = true;
         }
 
+        // Check Capacity and Waitlist
+        let status = 'registered';
+        if (event.maxCapacity > 0) {
+            const currentCount = await Registration.countDocuments({ eventId: event._id, status: { $ne: 'cancelled' } });
+            if (currentCount >= event.maxCapacity) {
+                status = 'waitlisted';
+            }
+        }
+
         const registration = await Registration.create({
             userId: req.user._id,
             eventId: eventId,
@@ -69,9 +79,10 @@ const registerForEvent = async (req, res) => {
             teamCode,
             isTeamLeader,
             teamSize: isTeamLeader ? teamSize : 1,
-            status: 'registered',
+            status: status,
             paymentStatus: paymentStatus,
-            paymentProof: paymentProof
+            paymentProof: paymentProof,
+            customAnswers: req.body.customAnswers || []
         });
 
         await Event.findByIdAndUpdate(eventId, { $inc: { registeredCount: 1 } });
@@ -100,12 +111,38 @@ const registerForEvent = async (req, res) => {
                 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
                 const qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(frontendUrl + '/checkin/' + event._id + '/' + registration._id)}`;
                 
+                // Generate ICS Calendar File
+                let icsContent = null;
+                if (event.date && event.time) {
+                    const eventDate = new Date(event.date);
+                    const [hours, minutes] = event.time.split(':').map(Number);
+                    
+                    const icsEvent = {
+                        start: [eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(), hours, minutes],
+                        duration: { hours: 2, minutes: 0 }, // default 2 hour duration
+                        title: event.title,
+                        description: `Ticket ID: ${ticketId}\nVenue: ${event.venue}`,
+                        location: event.venue,
+                        url: `${frontendUrl}/event/${event._id}`,
+                        status: 'CONFIRMED',
+                        busyStatus: 'BUSY',
+                        organizer: { name: 'CampusEventHub', email: 'noreply@campuseventhub.com' }
+                    };
+                    
+                    ics.createEvent(icsEvent, (error, value) => {
+                        if (!error) {
+                            icsContent = value;
+                        }
+                    });
+                }
+
                 await sendTicketEmail(
                     registration.email || req.user.email,
                     registration.participantName,
                     event.title,
                     ticketId,
-                    qrDataUrl
+                    qrDataUrl,
+                    icsContent
                 );
             } catch (emailErr) {
                 console.error("Failed to send ticket email", emailErr);
@@ -507,13 +544,16 @@ const submitProject = async (req, res) => {
 
 // @desc    Approve a pending payment
 // @route   PUT /api/registrations/:id/approve-payment
-// @access  Private (Organizer)
+// @access  Private (Organizer/Coordinator)
 const approvePayment = async (req, res) => {
     try {
         const registration = await Registration.findById(req.params.id).populate('eventId');
         if (!registration) return res.status(404).json({ message: 'Registration not found' });
         
-        if (registration.eventId.organizerId.toString() !== req.user._id.toString()) {
+        const isOrganizer = registration.eventId.organizerId.toString() === req.user._id.toString();
+        const isCoordinator = registration.eventId.coordinators && registration.eventId.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+
+        if (!isOrganizer && !isCoordinator) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
@@ -556,13 +596,16 @@ const approvePayment = async (req, res) => {
 
 // @desc    Reject a pending payment
 // @route   PUT /api/registrations/:id/reject-payment
-// @access  Private (Organizer)
+// @access  Private (Organizer/Coordinator)
 const rejectPayment = async (req, res) => {
     try {
         const registration = await Registration.findById(req.params.id).populate('eventId');
         if (!registration) return res.status(404).json({ message: 'Registration not found' });
         
-        if (registration.eventId.organizerId.toString() !== req.user._id.toString()) {
+        const isOrganizer = registration.eventId.organizerId.toString() === req.user._id.toString();
+        const isCoordinator = registration.eventId.coordinators && registration.eventId.coordinators.some(c => c.userId.toString() === req.user._id.toString());
+
+        if (!isOrganizer && !isCoordinator) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
