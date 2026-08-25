@@ -166,7 +166,7 @@ export default function HostedEvents() {
                 {/* Image Section */}
                 <div className="h-48 relative overflow-hidden bg-gray-200 rounded-t-2xl">
                   <img 
-                    src={event.image?.startsWith('/') ? `http://localhost:5000${event.image}` : event.image} 
+                    src={(event.images && event.images.length > 0 ? event.images[0] : event.image)?.startsWith('/') ? `http://localhost:5000${event.images && event.images.length > 0 ? event.images[0] : event.image}` : (event.images && event.images.length > 0 ? event.images[0] : event.image)} 
                     alt={event.title} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60'; }}

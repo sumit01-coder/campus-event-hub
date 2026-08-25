@@ -38,6 +38,9 @@ export default function EventRegistrations() {
   const [showScanner, setShowScanner] = useState(false);
   const [socket, setSocket] = useState(null);
 
+  // Expandable Rows for Custom Fields
+  const [expandedRowId, setExpandedRowId] = useState(null);
+
   const handleApprovePayment = async (regId) => {
     try {
       await api.put(`/registrations/${regId}/approve-payment`);
@@ -381,11 +384,15 @@ export default function EventRegistrations() {
                           <th className="px-6 py-5">Payment</th>
                           <th className="px-6 py-5">Attendance</th>
                           <th className="px-6 py-5">Date</th>
+                          {event.customQuestions && event.customQuestions.length > 0 && (
+                            <th className="px-6 py-5">Actions</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {currentRegistrations.map((reg) => (
-                          <tr key={reg._id} className="hover:bg-indigo-50/50 transition-colors group border-b border-gray-50 last:border-0">
+                          <React.Fragment key={reg._id}>
+                          <tr className="hover:bg-indigo-50/50 transition-colors group border-b border-gray-50 last:border-0">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">
@@ -467,7 +474,46 @@ export default function EventRegistrations() {
                             <td className="px-6 py-4 text-gray-500 font-medium text-xs whitespace-nowrap">
                               {new Date(reg.createdAt).toLocaleDateString()}
                             </td>
+                            {event.customQuestions && event.customQuestions.length > 0 && (
+                              <td className="px-6 py-4">
+                                <button 
+                                  onClick={() => setExpandedRowId(expandedRowId === reg._id ? null : reg._id)}
+                                  className="text-indigo-600 hover:text-indigo-800 text-xs font-bold transition-colors flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100"
+                                >
+                                  {expandedRowId === reg._id ? 'Hide Info' : 'More Info'}
+                                </button>
+                              </td>
+                            )}
                           </tr>
+                          {expandedRowId === reg._id && event.customQuestions && event.customQuestions.length > 0 && (
+                            <tr>
+                              <td colSpan="8" className="px-8 py-6 bg-indigo-50/30 border-b border-indigo-100">
+                                <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span> 
+                                  Custom Registration Details
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                  {event.customQuestions.map(q => {
+                                    const answerObj = reg.customAnswers?.find(a => a.questionId === q._id);
+                                    let displayAnswer = answerObj?.answer;
+                                    if (Array.isArray(displayAnswer)) {
+                                      displayAnswer = displayAnswer.join(', ');
+                                    }
+                                    
+                                    return (
+                                      <div key={q._id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                        <p className="text-xs text-gray-500 font-bold mb-1 uppercase tracking-wider">{q.question}</p>
+                                        <p className="text-sm font-medium text-gray-900">
+                                          {displayAnswer || <span className="text-gray-400 italic">Not provided</span>}
+                                        </p>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>

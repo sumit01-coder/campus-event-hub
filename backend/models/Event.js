@@ -21,10 +21,9 @@ const eventSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    image: {
-        type: String, // URL to event image
-        required: true
-    },
+    images: [{
+        type: String // URLs to event images
+    }],
     category: {
         type: String,
         required: true,

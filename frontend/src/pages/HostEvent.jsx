@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
-import { ShieldAlert, Clock, XCircle, Send, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Tag, Users, DollarSign, Loader2, Upload, Bold, Italic, Underline, List, ListOrdered, Link2, LayoutList, ChevronRight, ChevronDown, CheckCircle, Info, PenTool, Eye, Edit3, ArrowRight, ExternalLink } from 'lucide-react';
+import { ShieldAlert, Clock, XCircle, Send, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Tag, Users, DollarSign, Loader2, Upload, Bold, Italic, Underline, List, ListOrdered, Link2, LayoutList, ChevronRight, ChevronDown, CheckCircle, Info, PenTool, Eye, Edit3, ArrowRight, ExternalLink, Plus, Trash2, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -33,7 +33,7 @@ export default function HostEvent() {
     date: '',
     time: '',
     venue: '',
-    image: '',
+    images: [],
     category: '',
     price: '',
     capacity: '',
@@ -41,7 +41,8 @@ export default function HostEvent() {
     participationType: 'individual',
     maxGroupSize: 1,
     isHackathon: false,
-    maxPreferences: 3
+    maxPreferences: 3,
+    customQuestions: []
   });
 
   // Verification Checks
@@ -163,33 +164,94 @@ export default function HostEvent() {
   };
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    if (formData.images.length + files.length > 5) {
+      toast.error('You can only upload up to 5 images.');
+      return;
+    }
 
     const uploadData = new FormData();
-    uploadData.append('image', file);
+    files.forEach(file => {
+      uploadData.append('images', file);
+    });
 
     setIsUploading(true);
     try {
-      // Create a specific config for multipart/form-data
       const config = {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       };
-      // Important: Use the full api path or a new axios instance if api config overrides Content-Type
-      const { data } = await api.post('/upload', uploadData, config);
       
-      // Update form data with the new URL (prepend backend URL if needed, but relative should work if proxy handles it)
-      // Actually we will use the full backend URL in case images break, or just relative
-      setFormData({ ...formData, image: data.imageUrl });
-      toast.success('Image uploaded successfully!');
+      const { data } = await api.post('/upload/multiple', uploadData, config);
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        images: [...prev.images, ...data.imageUrls] 
+      }));
+      toast.success('Images uploaded successfully!');
     } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload image');
+      console.error(error);
+      toast.error('Failed to upload images');
     } finally {
       setIsUploading(false);
     }
+  };
+  
+  const removeImage = (indexToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, index) => index !== indexToRemove)
+    }));
+  };
+
+  const handleAddQuestion = () => {
+    setFormData(prev => ({
+      ...prev,
+      customQuestions: [...prev.customQuestions, { question: '', type: 'text', options: [], required: false }]
+    }));
+  };
+
+  const handleRemoveQuestion = (index) => {
+    setFormData(prev => {
+      const newQuestions = [...prev.customQuestions];
+      newQuestions.splice(index, 1);
+      return { ...prev, customQuestions: newQuestions };
+    });
+  };
+
+  const handleQuestionChange = (index, field, value) => {
+    setFormData(prev => {
+      const newQuestions = [...prev.customQuestions];
+      newQuestions[index][field] = value;
+      return { ...prev, customQuestions: newQuestions };
+    });
+  };
+
+  const handleAddOption = (qIndex) => {
+    setFormData(prev => {
+      const newQuestions = [...prev.customQuestions];
+      newQuestions[qIndex].options.push('');
+      return { ...prev, customQuestions: newQuestions };
+    });
+  };
+
+  const handleRemoveOption = (qIndex, oIndex) => {
+    setFormData(prev => {
+      const newQuestions = [...prev.customQuestions];
+      newQuestions[qIndex].options.splice(oIndex, 1);
+      return { ...prev, customQuestions: newQuestions };
+    });
+  };
+
+  const handleOptionChange = (qIndex, oIndex, value) => {
+    setFormData(prev => {
+      const newQuestions = [...prev.customQuestions];
+      newQuestions[qIndex].options[oIndex] = value;
+      return { ...prev, customQuestions: newQuestions };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -373,9 +435,7 @@ export default function HostEvent() {
                   </div>
                 </div>
               </div>
-
               <hr className="border-gray-100" />
-
               </>
 )}
 
@@ -391,27 +451,70 @@ export default function HostEvent() {
                   <p className="text-xs text-gray-500">Upload an attractive image that represents your event.</p>
                 </div>
                 
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-gray-50/50 hover:bg-gray-50 transition-colors relative">
-                  <div className="w-12 h-12 bg-white rounded-lg shadow-sm flex items-center justify-center mb-4 border border-gray-100 text-primary">
-                    <ImageIcon size={24} />
-                  </div>
-                  <p className="text-sm font-medium text-gray-700 mb-1">Drag & drop an image here</p>
-                  <p className="text-xs text-gray-400 mb-4">or</p>
-                  
-                  <div className="relative">
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      disabled={isUploading}
-                    />
-                    <button type="button" className="bg-white border border-gray-200 text-primary font-bold text-xs px-4 py-2 rounded-md hover:bg-gray-50 flex items-center gap-2">
-                      {isUploading ? <><Loader2 size={14} className="animate-spin"/> Uploading...</> : <><Upload size={14} /> Upload Image</>}
-                    </button>
-                  </div>
-                  
-                  <p className="text-[10px] text-gray-400 mt-4">Recommended: 1200 x 628px (JPG, PNG) • Max size: 5MB</p>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 bg-gray-50/50 hover:bg-gray-50 transition-colors relative">
+                  {formData.images.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {formData.images.map((imgUrl, index) => (
+                          <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                            <img src={imgUrl.startsWith('/') ? `http://localhost:5000${imgUrl}` : imgUrl} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button type="button" onClick={() => removeImage(index)} className="p-1.5 bg-white text-red-500 rounded-full hover:scale-110 transition-transform">
+                                <XCircle size={16} />
+                              </button>
+                            </div>
+                            {index === 0 && (
+                              <div className="absolute top-2 left-2 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">Cover</div>
+                            )}
+                          </div>
+                        ))}
+                        {formData.images.length < 5 && (
+                          <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center relative hover:bg-white transition-colors cursor-pointer">
+                            <div className="text-center">
+                              <ImageIcon className="mx-auto text-gray-400 mb-1" size={20} />
+                              <span className="text-xs font-medium text-gray-500">Add Image</span>
+                            </div>
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              multiple
+                              onChange={handleImageUpload}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              disabled={isUploading}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-gray-500">
+                        <span>{formData.images.length} of 5 images uploaded</span>
+                        {isUploading && <span className="flex items-center gap-1 text-primary"><Loader2 size={12} className="animate-spin"/> Uploading...</span>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-center py-6">
+                      <div className="w-12 h-12 bg-white rounded-lg shadow-sm flex items-center justify-center mb-4 border border-gray-100 text-primary">
+                        <ImageIcon size={24} />
+                      </div>
+                      <p className="text-sm font-medium text-gray-700 mb-1">Drag & drop images here</p>
+                      <p className="text-xs text-gray-400 mb-4">or</p>
+                      
+                      <div className="relative">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          multiple
+                          onChange={handleImageUpload}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          disabled={isUploading}
+                        />
+                        <button type="button" className="bg-white border border-gray-200 text-primary font-bold text-xs px-4 py-2 rounded-md hover:bg-gray-50 flex items-center gap-2 shadow-sm">
+                          {isUploading ? <><Loader2 size={14} className="animate-spin"/> Uploading...</> : <><Upload size={14} /> Browse Files</>}
+                        </button>
+                      </div>
+                      
+                      <p className="text-[10px] text-gray-400 mt-4">Recommended: 1200 x 628px (JPG, PNG) • Max size: 5MB per image • Up to 5 images</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -561,6 +664,108 @@ export default function HostEvent() {
                     <p className="text-[10px] text-gray-500 mt-1">How many problem statements can a team/participant select? (0 = unlimited)</p>
                   </div>
                 )}
+
+                {/* Custom Registration Fields */}
+                <div className="mt-8 pt-6 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Settings className="text-primary" size={18} />
+                      <h3 className="font-bold text-gray-900">Custom Registration Fields</h3>
+                    </div>
+                    <button type="button" onClick={handleAddQuestion} className="text-primary bg-blue-50 hover:bg-blue-100 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                      <Plus size={14} /> Add Field
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-6">Ask attendees custom questions during registration (e.g., T-shirt size, dietary preferences, GitHub URL).</p>
+
+                  <div className="space-y-4">
+                    {formData.customQuestions.map((q, qIndex) => (
+                      <div key={qIndex} className="bg-gray-50/50 border border-gray-200 rounded-xl p-4 md:p-5 relative group shadow-sm transition-all hover:shadow-md hover:border-gray-300">
+                        <button type="button" onClick={() => handleRemoveQuestion(qIndex)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 pr-8">
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Question Title</label>
+                            <input 
+                              type="text" 
+                              value={q.question} 
+                              onChange={(e) => handleQuestionChange(qIndex, 'question', e.target.value)} 
+                              required 
+                              placeholder="e.g., What is your T-shirt size?"
+                              className="w-full bg-white border border-gray-200 py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm transition-all" 
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Field Type</label>
+                            <div className="relative">
+                              <select 
+                                value={q.type} 
+                                onChange={(e) => handleQuestionChange(qIndex, 'type', e.target.value)}
+                                className="w-full pl-3 pr-8 bg-white border border-gray-200 py-2 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm appearance-none cursor-pointer"
+                              >
+                                <option value="text">Short Answer (Text)</option>
+                                <option value="dropdown">Dropdown Menu</option>
+                                <option value="checkbox">Multiple Choice (Checkbox)</option>
+                              </select>
+                              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {(q.type === 'dropdown' || q.type === 'checkbox') && (
+                          <div className="pl-2 border-l-2 border-primary/20 mb-4 mt-2">
+                            <label className="block text-xs font-bold text-gray-600 mb-2">Options</label>
+                            <div className="space-y-2 mb-2">
+                              {q.options.map((opt, oIndex) => (
+                                <div key={oIndex} className="flex items-center gap-2">
+                                  {q.type === 'checkbox' ? <div className="w-4 h-4 rounded border border-gray-300"></div> : <div className="w-4 h-4 rounded-full border border-gray-300"></div>}
+                                  <input 
+                                    type="text" 
+                                    value={opt} 
+                                    onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
+                                    placeholder={`Option ${oIndex + 1}`}
+                                    required
+                                    className="flex-1 bg-white border-b border-gray-200 focus:border-primary px-1 py-1 text-sm focus:outline-none transition-colors"
+                                  />
+                                  <button type="button" onClick={() => handleRemoveOption(qIndex, oIndex)} className="text-gray-400 hover:text-red-500">
+                                    <XCircle size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            <button type="button" onClick={() => handleAddOption(qIndex)} className="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
+                              <Plus size={12} /> Add Option
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-2 border-t border-gray-200/60 justify-end">
+                          <label className="text-xs font-bold text-gray-600 cursor-pointer flex items-center gap-2">
+                            <span className={q.required ? "text-primary" : "text-gray-500"}>Required</span>
+                            <div className={`w-8 h-4 rounded-full relative transition-colors ${q.required ? 'bg-primary' : 'bg-gray-300'}`}>
+                              <input 
+                                type="checkbox" 
+                                checked={q.required} 
+                                onChange={(e) => handleQuestionChange(qIndex, 'required', e.target.checked)}
+                                className="opacity-0 absolute inset-0 cursor-pointer"
+                              />
+                              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${q.required ? 'left-[18px]' : 'left-0.5'}`}></div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                    {formData.customQuestions.length === 0 && (
+                      <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                        <ListOrdered className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-gray-500">No custom fields added</p>
+                        <button type="button" onClick={handleAddQuestion} className="mt-2 text-xs font-bold text-primary hover:underline">Add your first question</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <hr className="border-gray-100" />

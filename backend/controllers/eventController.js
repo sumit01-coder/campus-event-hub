@@ -47,12 +47,13 @@ const getEvents = async (req, res) => {
 const createEvent = async (req, res) => {
     try {
         const { 
-            title, description, date, time, venue, image, category, price, capacity,
-            participationType, maxGroupSize, registrationDeadline, isHackathon 
+            title, description, date, time, venue, images, category, price, capacity,
+            participationType, maxGroupSize, registrationDeadline, isHackathon,
+            customQuestions
         } = req.body;
 
-        if (!title || !description || !date || !time || !venue || !image || !category || !capacity) {
-            return res.status(400).json({ message: 'Please add all required fields' });
+        if (!title || !description || !date || !time || !venue || !images || images.length === 0 || !category || !capacity) {
+            return res.status(400).json({ message: 'Please add all required fields including at least one image' });
         }
 
         const numericPrice = parseFloat(price) || 0;
@@ -63,7 +64,7 @@ const createEvent = async (req, res) => {
             date,
             time,
             venue,
-            image,
+            images,
             category,
             price: numericPrice,
             isPaid: numericPrice > 0,
@@ -72,6 +73,7 @@ const createEvent = async (req, res) => {
             maxGroupSize: maxGroupSize || 1,
             registrationDeadline,
             isHackathon: isHackathon || false,
+            customQuestions: customQuestions || [],
             organizerId: req.user._id // Attached by auth middleware
         });
 

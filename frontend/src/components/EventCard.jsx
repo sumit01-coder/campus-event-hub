@@ -78,16 +78,19 @@ export default function EventCard({ event, onViewPass }) {
       </div>
       
       <div className="w-full h-48 sm:w-32 sm:h-32 rounded-[20px] bg-gray-100 relative overflow-hidden flex-shrink-0 shadow-inner">
-        {event.image ? (
-          <img 
-            src={event.image?.startsWith('/') ? `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}${event.image}` : event.image} 
-            alt={event.title} 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60'; }}
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100"></div>
-        )}
+        {(() => {
+          const firstImage = event.images && event.images.length > 0 ? event.images[0] : event.image;
+          if (!firstImage) return <div className="w-full h-full bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100"></div>;
+          
+          return (
+            <img 
+              src={firstImage?.startsWith('/') ? `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}${firstImage}` : firstImage} 
+              alt={event.title} 
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60'; }}
+            />
+          );
+        })()}
         {event.userReg ? (
           <button 
             onClick={(e) => { e.stopPropagation(); if(onViewPass) onViewPass(event); }}

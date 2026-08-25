@@ -51,7 +51,7 @@ export default function Home() {
       ...card,
       title: event.title,
       date: new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      image: event.image || event.bannerUrl || card.image,
+      image: (event.images && event.images.length > 0 ? event.images[0] : event.image) || event.bannerUrl || card.image,
       attendees: event.registeredCount ?? event.registrations?.length ?? 0,
       capacity: event.capacity ?? null
     };

@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-export default function RegistrationModal({ isOpen, onClose, event, onRegister, isRegistering }) {
+export default function RegistrationModal({ isOpen, onClose, event, onRegister, isRegistering, initialData = null, isEditing = false }) {
   const { user } = useContext(AuthContext);
   const [paymentProofUrl, setPaymentProofUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -21,17 +21,42 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
     teamSize: 2
   });
 
-  // Pre-fill with user data if available
+  const [customAnswers, setCustomAnswers] = useState({});
+
+  // Pre-fill with user data or initialData if editing
   useEffect(() => {
-    if (user && isOpen) {
-      setFormData({
-        participantName: user.name || '',
-        email: user.email || '',
-        phone: user.profile?.phone || '',
-        college: user.profile?.college || ''
-      });
+    if (isOpen) {
+      if (isEditing && initialData) {
+        setFormData({
+          participantName: initialData.participantName || '',
+          email: initialData.email || '',
+          phone: initialData.phone || '',
+          college: initialData.college || '',
+          participationType: initialData.participationType || 'individual',
+          teamSize: initialData.teamSize || 2
+        });
+        
+        // Reconstruct customAnswers object
+        if (initialData.customAnswers && initialData.customAnswers.length > 0) {
+          const answersMap = {};
+          initialData.customAnswers.forEach(ans => {
+            answersMap[ans.questionId] = ans.answer;
+          });
+          setCustomAnswers(answersMap);
+        }
+      } else if (user) {
+        setFormData({
+          participantName: user.name || '',
+          email: user.email || '',
+          phone: user.profile?.phone || '',
+          college: user.profile?.college || '',
+          participationType: 'individual',
+          teamSize: 2
+        });
+        setCustomAnswers({});
+      }
     }
-  }, [user, isOpen]);
+  }, [user, isOpen, isEditing, initialData]);
 
   if (!isOpen || !event) return null;
 
@@ -39,13 +64,36 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleCustomAnswerChange = (questionId, value) => {
+    setCustomAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (event.price > 0 && !paymentProofUrl) {
+
+    if (event.customQuestions) {
+      for (const q of event.customQuestions) {
+        if (q.required && q.type === 'checkbox') {
+          const answers = customAnswers[q._id];
+          if (!answers || answers.length === 0) {
+            toast.error(`Please select at least one option for: ${q.question}`);
+            return;
+          }
+        }
+      }
+    }
+
+    if (!isEditing && event.price > 0 && !paymentProofUrl) {
       toast.error('Please upload your payment proof screenshot');
       return;
     }
-    onRegister({ ...formData, paymentProof: paymentProofUrl });
+    
+    const formattedCustomAnswers = Object.entries(customAnswers).map(([questionId, answer]) => ({
+      questionId,
+      answer
+    }));
+
+    onRegister({ ...formData, paymentProof: paymentProofUrl, customAnswers: formattedCustomAnswers });
   };
 
   const handleImageUpload = async (e) => {
@@ -99,7 +147,7 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
         <div className="p-6 md:p-8 overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-5">
             
-            {(event.participationType === 'both' || event.participationType === 'group') && (
+            {!isEditing && (event.participationType === 'both' || event.participationType === 'group') && (
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                 <label className="block text-sm font-bold text-gray-700 mb-3">How are you registering?</label>
                 <div className="flex gap-4">
@@ -160,7 +208,8 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-medium text-gray-900"
+                disabled={isEditing}
+                className={`w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-medium text-gray-900 ${isEditing ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                 placeholder="Enter your email"
               />
             </div>
@@ -190,7 +239,83 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
               />
             </div>
 
-            {event.price > 0 && (
+            {event.customQuestions && event.customQuestions.length > 0 && (
+              <div className="border-t border-gray-100 pt-5 mt-2 space-y-4">
+                <h4 className="text-sm font-bold text-gray-900 mb-2">Additional Information</h4>
+                {event.customQuestions.map((q) => (
+                  <div key={q._id}>
+                    <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                      {q.question} {q.required && <span className="text-red-500">*</span>}
+                    </label>
+                    
+                    {q.type === 'text' && (
+                      <input 
+                        type="text"
+                        required={q.required}
+                        value={customAnswers[q._id] || ''}
+                        onChange={(e) => handleCustomAnswerChange(q._id, e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-medium text-gray-900"
+                        placeholder="Your answer"
+                      />
+                    )}
+
+                    {q.type === 'dropdown' && (
+                      <div className="relative">
+                        <select
+                          required={q.required}
+                          value={customAnswers[q._id] || ''}
+                          onChange={(e) => handleCustomAnswerChange(q._id, e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-medium text-gray-900 appearance-none bg-white"
+                        >
+                          <option value="" disabled>Select an option</option>
+                          {q.options.map((opt, i) => (
+                            <option key={i} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                      </div>
+                    )}
+
+                    {q.type === 'checkbox' && (
+                      <div className="space-y-2 mt-2">
+                        {q.options.map((opt, i) => {
+                          const isChecked = (customAnswers[q._id] || []).includes(opt);
+                          return (
+                            <label key={i} className="flex items-start gap-3 cursor-pointer group">
+                              <div className="relative flex items-center justify-center pt-0.5">
+                                <input 
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const currentAnswers = customAnswers[q._id] || [];
+                                    let newAnswers;
+                                    if (e.target.checked) {
+                                      newAnswers = [...currentAnswers, opt];
+                                    } else {
+                                      newAnswers = currentAnswers.filter(a => a !== opt);
+                                    }
+                                    handleCustomAnswerChange(q._id, newAnswers);
+                                  }}
+                                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 opacity-0 absolute"
+                                />
+                                <div className={`w-5 h-5 rounded border ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300 group-hover:border-indigo-400'} flex items-center justify-center transition-colors`}>
+                                  {isChecked && <CheckCircle size={14} className="text-white" />}
+                                </div>
+                              </div>
+                              <span className="text-sm font-medium text-gray-700 select-none pt-0.5">{opt}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!isEditing && event.price > 0 && (
               <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mt-6">
                 <div className="flex justify-between items-center mb-1">
                   <p className="text-sm text-orange-800 font-medium">Ticket Price:</p>
@@ -269,16 +394,12 @@ export default function RegistrationModal({ isOpen, onClose, event, onRegister, 
               </button>
               <button 
                 type="submit"
-                disabled={isRegistering || (event.price > 0 && !hasQrCode)}
+                disabled={isRegistering || (!isEditing && event.price > 0 && !paymentProofUrl)}
                 className="flex-[2] px-4 py-3 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-colors flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isRegistering ? (
                   <><Loader2 className="animate-spin" size={18} /> Processing...</>
-                ) : event.price > 0 && !hasQrCode ? (
-                  'Payment Unavailable'
-                ) : (
-                  'Confirm Registration'
-                )}
+                ) : (isEditing ? 'Update Registration' : 'Confirm Registration')}
               </button>
             </div>
             

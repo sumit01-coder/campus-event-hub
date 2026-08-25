@@ -15,11 +15,15 @@ const {
     assignProblem,
     submitProject,
     approvePayment,
-    rejectPayment
+    rejectPayment,
+    updateRegistration,
+    verifyTeamCode
 } = require('../controllers/registrationController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.post('/', protect, registerForEvent);
+router.put('/:id', protect, updateRegistration);
+router.get('/verify-team/:teamCode', protect, verifyTeamCode);
 router.post('/join', protect, joinWithTeamCode);
 router.get('/my-registrations', protect, getMyRegistrations);
 router.get('/team/:teamCode', protect, getTeamMembers);

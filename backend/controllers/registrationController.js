@@ -269,12 +269,46 @@ const cancelRegistration = async (req, res) => {
     }
 };
 
+// @desc    Verify team code before joining (returns event data)
+// @route   GET /api/registrations/verify-team/:teamCode
+// @access  Private
+const verifyTeamCode = async (req, res) => {
+    try {
+        const teamCode = req.params.teamCode.toUpperCase();
+        
+        const leaderRegistration = await Registration.findOne({ teamCode: teamCode, isTeamLeader: true });
+        
+        if (!leaderRegistration) {
+            return res.status(404).json({ message: 'Invalid Team Code. Please check and try again.' });
+        }
+
+        const event = await Event.findById(leaderRegistration.eventId);
+        if (!event) {
+            return res.status(404).json({ message: 'Event no longer exists.' });
+        }
+
+        // Check if full
+        const currentMembersCount = await Registration.countDocuments({ 
+            $or: [{ teamCode: teamCode }, { joinedTeamCode: teamCode }] 
+        });
+
+        if (currentMembersCount >= leaderRegistration.teamSize) {
+            return res.status(400).json({ message: `This team is already full (Max ${leaderRegistration.teamSize} members).` });
+        }
+
+        res.json({ message: 'Code verified successfully', event, teamSize: leaderRegistration.teamSize, currentMembersCount });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
 // @desc    Join a team via code
 // @route   POST /api/registrations/join
 // @access  Private
 const joinWithTeamCode = async (req, res) => {
     try {
-        const { teamCode, participantName, email, phone, college } = req.body;
+        const { teamCode, participantName, email, phone, college, customAnswers } = req.body;
 
         // Find the team leader's registration
         const leaderRegistration = await Registration.findOne({ teamCode: teamCode.toUpperCase(), isTeamLeader: true });
@@ -318,7 +352,8 @@ const joinWithTeamCode = async (req, res) => {
             joinedTeamCode: teamCode.toUpperCase(),
             isTeamLeader: false,
             status: 'registered',
-            paymentStatus: leaderRegistration.paymentStatus
+            paymentStatus: leaderRegistration.paymentStatus,
+            customAnswers: customAnswers || []
         });
 
         await Event.findByIdAndUpdate(eventId, { $inc: { registeredCount: 1 } });
@@ -631,6 +666,43 @@ const rejectPayment = async (req, res) => {
     }
 };
 
+const updateRegistration = async (req, res) => {
+    try {
+        const { participantName, phone, college, customAnswers } = req.body;
+        const registrationId = req.params.id;
+
+        const registration = await Registration.findById(registrationId).populate('eventId');
+        
+        if (!registration) {
+            return res.status(404).json({ message: 'Registration not found' });
+        }
+
+        // Ensure user owns this registration
+        if (registration.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to update this registration' });
+        }
+
+        // Ensure deadline has not passed
+        const now = new Date();
+        const deadline = new Date(registration.eventId.registrationDeadline);
+        if (now > deadline) {
+            return res.status(400).json({ message: 'Registration deadline has passed. Cannot edit registration.' });
+        }
+
+        // Update allowed fields
+        if (participantName) registration.participantName = participantName;
+        if (phone) registration.phone = phone;
+        if (college !== undefined) registration.college = college; // allow empty college
+        if (customAnswers) registration.customAnswers = customAnswers;
+
+        await registration.save();
+        res.json(registration);
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
 module.exports = {
     registerForEvent,
     getMyRegistrations,
@@ -646,5 +718,7 @@ module.exports = {
     assignProblem,
     submitProject,
     approvePayment,
-    rejectPayment
+    rejectPayment,
+    updateRegistration,
+    verifyTeamCode
 };

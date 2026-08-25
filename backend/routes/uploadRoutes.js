@@ -46,23 +46,41 @@ const upload = multer({
     }
 });
 
-// POST /api/upload
+// POST /api/upload (Single image for backwards compatibility e.g. Settings)
 router.post('/', protect, upload.single('image'), (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: 'Please upload a file' });
         }
         
-        // Return the URL to access the uploaded file
-        // The frontend will use this URL in the event creation
         const imageUrl = `/uploads/${req.file.filename}`;
         
         res.json({ 
-            message: 'File uploaded successfully',
+            message: 'Image uploaded successfully',
             imageUrl: imageUrl 
         });
     } catch (error) {
-        console.error('Error in file upload:', error);
+        console.error('Upload error:', error);
+        res.status(500).json({ message: 'Server error during upload' });
+    }
+});
+
+// POST /api/upload/multiple (Multiple images for Events)
+router.post('/multiple', protect, upload.array('images', 5), (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: 'Please upload at least one file' });
+        }
+        
+        // Return the URLs to access the uploaded files
+        const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+        
+        res.json({ 
+            message: 'Images uploaded successfully',
+            imageUrls: imageUrls 
+        });
+    } catch (error) {
+        console.error('Upload error:', error);
         res.status(500).json({ message: 'Server error during upload' });
     }
 });

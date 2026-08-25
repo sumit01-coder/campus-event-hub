@@ -22,6 +22,7 @@ export default function EventDetails() {
   const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
   const [registrationDetails, setRegistrationDetails] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [isEditMode, setIsEditMode] = useState(false);
   
   // Q&A State
   const { user } = React.useContext(AuthContext);
@@ -141,6 +142,21 @@ export default function EventDetails() {
     }
   };
 
+  const handleUpdateRegistration = async (formData) => {
+    try {
+      setIsRegistering(true);
+      const { data } = await api.put(`/registrations/${registrationDetails._id}`, formData);
+      toast.success('Successfully updated registration!');
+      setRegistrationDetails(data);
+      setIsModalOpen(false);
+      setIsEditMode(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update registration');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
   const handleCancelRegistration = async () => {
     if (!window.confirm('Are you sure you want to cancel your registration?')) return;
     
@@ -232,7 +248,8 @@ export default function EventDetails() {
 
   if (!event) return null;
 
-  const imageUrl = event.image?.startsWith('/') ? `http://localhost:5000${event.image}` : event.image;
+  const firstImage = event.images && event.images.length > 0 ? event.images[0] : event.image;
+  const imageUrl = firstImage?.startsWith('/') ? `http://localhost:5000${firstImage}` : firstImage;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -602,12 +619,26 @@ export default function EventDetails() {
                       
                     </div>
 
-                    <button 
-                      onClick={() => setIsPassModalOpen(true)}
-                      className="w-full bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-lg py-3 rounded-xl shadow-lg active:scale-95 transition-all flex justify-center items-center gap-2 mb-2"
-                    >
-                      <Ticket size={20} /> View Pass
-                    </button>
+                    <div className="flex gap-2 mb-2">
+                      <button 
+                        onClick={() => setIsPassModalOpen(true)}
+                        className="flex-1 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-sm py-3 rounded-xl shadow-lg active:scale-95 transition-all flex justify-center items-center gap-2"
+                      >
+                        <Ticket size={18} /> View Pass
+                      </button>
+                      
+                      {new Date() < new Date(event.registrationDeadline) && (
+                        <button 
+                          onClick={() => {
+                            setIsEditMode(true);
+                            setIsModalOpen(true);
+                          }}
+                          className="flex-1 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-sm py-3 rounded-xl shadow-lg active:scale-95 transition-all flex justify-center items-center gap-2"
+                        >
+                          Edit Details
+                        </button>
+                      )}
+                    </div>
 
                     <button 
                       onClick={handleCancelRegistration}
@@ -643,10 +674,15 @@ export default function EventDetails() {
       {/* Registration Modal */}
       <RegistrationModal 
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setIsEditMode(false);
+        }}
         event={event}
-        onRegister={handleRegister}
+        onRegister={isEditMode ? handleUpdateRegistration : handleRegister}
         isRegistering={isRegistering}
+        isEditing={isEditMode}
+        initialData={isEditMode ? registrationDetails : null}
       />
 
       {/* Pass Modal */}
