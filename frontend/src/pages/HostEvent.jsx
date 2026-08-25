@@ -26,6 +26,7 @@ export default function HostEvent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -193,16 +194,23 @@ export default function HostEvent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (currentStep < 3) {
+      if (currentStep === 2 && !validateDates(formData.date, formData.time, formData.registrationDeadline)) {
+        toast.error('Please fix the date/time errors before proceeding.');
+        return;
+      }
+      setCurrentStep(prev => prev + 1);
+      return;
+    }
     if (!validateDates(formData.date, formData.time, formData.registrationDeadline)) {
       toast.error('Please fix the date/time errors before publishing.');
       return;
     }
     setIsSubmitting(true);
-    
     try {
       await api.post('/events', formData);
       toast.success('Event published successfully!');
-      navigate('/dashboard'); // or /my-events
+      navigate('/dashboard');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to publish event');
     } finally {
@@ -239,20 +247,17 @@ export default function HostEvent() {
                 
                 {/* Step 1 */}
                 <div className="flex flex-col items-center relative z-10 w-24">
-                  <div className="w-7 h-7 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-[11px] font-bold mb-2 shadow-sm ring-8 ring-[#F5F6FA]">1</div>
-                  <span className="text-[11px] font-bold text-[#2563EB] bg-[#F5F6FA] px-1">Event Details</span>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold mb-2 shadow-sm ring-8 ring-[#F5F6FA] ${currentStep >= 1 ? "bg-[#2563EB] text-white" : "text-gray-400 bg-[#F5F6FA]"}`}>1</div><span className={`text-[11px] font-bold px-1 bg-[#F5F6FA] ${currentStep >= 1 ? "text-[#2563EB]" : "text-gray-400"}`}>Event Details</span>
                 </div>
                 
                 {/* Step 2 */}
                 <div className="flex flex-col items-center relative z-10 w-24">
-                  <div className="w-7 h-7 flex items-center justify-center text-[11px] font-bold text-gray-400 mb-2 bg-[#F5F6FA] ring-8 ring-[#F5F6FA]">2</div>
-                  <span className="text-[11px] font-bold text-gray-400 bg-[#F5F6FA] px-1">Additional Info</span>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold mb-2 shadow-sm ring-8 ring-[#F5F6FA] ${currentStep >= 2 ? "bg-[#2563EB] text-white" : "text-gray-400 bg-[#F5F6FA]"}`}>2</div><span className={`text-[11px] font-bold px-1 bg-[#F5F6FA] ${currentStep >= 2 ? "text-[#2563EB]" : "text-gray-400"}`}>Additional Info</span>
                 </div>
                 
                 {/* Step 3 */}
                 <div className="flex flex-col items-center relative z-10 w-24">
-                  <div className="w-7 h-7 flex items-center justify-center text-[11px] font-bold text-gray-400 mb-2 bg-[#F5F6FA] ring-8 ring-[#F5F6FA]">3</div>
-                  <span className="text-[11px] font-bold text-gray-400 bg-[#F5F6FA] px-1 whitespace-nowrap">Review & Publish</span>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold mb-2 shadow-sm ring-8 ring-[#F5F6FA] ${currentStep >= 3 ? "bg-[#2563EB] text-white" : "text-gray-400 bg-[#F5F6FA]"}`}>3</div><span className={`text-[11px] font-bold px-1 bg-[#F5F6FA] whitespace-nowrap ${currentStep >= 3 ? "text-[#2563EB]" : "text-gray-400"}`}>Review & Publish</span>
                 </div>
               </div>
             </div>
@@ -273,7 +278,9 @@ export default function HostEvent() {
             {/* Form */}
             <form onSubmit={handleSubmit} className="bg-white rounded-[16px] border border-gray-100 p-8 shadow-[0_2px_10px_rgb(0,0,0,0.02)] space-y-10">
               
-              {/* Section 1: Basic Information */}
+              {currentStep === 1 && (
+<>
+{/* Section 1: Basic Information */}
               <div className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <LayoutList className="text-primary" size={18} />
@@ -369,7 +376,12 @@ export default function HostEvent() {
 
               <hr className="border-gray-100" />
 
-              {/* Section 2: Event Image */}
+              </>
+)}
+
+{currentStep === 2 && (
+<>
+{/* Section 2: Event Image */}
               <div className="space-y-4">
                 <div className="flex flex-col mb-2">
                   <div className="flex items-center gap-2 mb-1">
@@ -553,7 +565,12 @@ export default function HostEvent() {
 
               <hr className="border-gray-100" />
 
-              {/* Section 4: About the Event */}
+              </>
+)}
+
+{currentStep === 3 && (
+<>
+{/* Section 4: About the Event */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
                   <Info className="text-primary" size={18} />
@@ -600,20 +617,29 @@ export default function HostEvent() {
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-between items-center">
-                <button type="button" onClick={() => navigate('/dashboard')} className="px-6 py-2.5 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  Cancel
-                </button>
+              </>
+              )}
+              <div className="pt-6 flex justify-between items-center border-t border-gray-100 mt-4">
+                {currentStep === 1 ? (
+                  <button type="button" onClick={() => navigate('/dashboard')} className="px-6 py-2.5 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setCurrentStep(prev => prev - 1)} className="px-6 py-2.5 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    Back
+                  </button>
+                )}
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
                   className="bg-primary text-white px-6 py-2.5 text-sm rounded-lg font-bold flex items-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-70"
                 >
-                  {isSubmitting ? <><Loader2 className="animate-spin" size={16} /> Publishing...</> : <>Next: Additional Info <ArrowRight size={16} /></>}
+                  {currentStep === 1 && <>Next: Additional Info <ArrowRight size={16} /></>}
+                  {currentStep === 2 && <>Next: Review & Publish <ArrowRight size={16} /></>}
+                  {currentStep === 3 && (isSubmitting ? <><Loader2 className="animate-spin" size={16} /> Publishing...</> : <>Publish Event <Send size={16} /></>)}
                 </button>
               </div>
-
-            </form>
+        </form>
           </div>
 
           {/* Right Sidebar Column */}

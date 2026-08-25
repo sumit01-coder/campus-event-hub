@@ -27,12 +27,15 @@ function bootServer(password) {
         console.log('✅ Access Granted. Starting Application Engine...');
         
         // Execute the decrypted source code
-        const Module = module.constructor;
-        const m = new Module();
-        m._compile(decrypted, path.join(__dirname, 'core.js'));
+        const Module = require('module');
+        const m = new Module(path.join(__dirname, 'core.js'), module);
+        m.filename = path.join(__dirname, 'core.js');
+        m.paths = Module._nodeModulePaths(__dirname);
+        m._compile(decrypted, m.filename);
         
     } catch (error) {
         console.error('❌ ACCESS DENIED: Invalid Password or Corrupted File.');
+        console.error('Actual Error:', error);
         process.exit(1);
     }
 }
@@ -49,7 +52,7 @@ if (process.env.DEVELOPER_PASSWORD) {
     });
 
     rl.question('Enter Developer Password to start the server: ', (password) => {
-        bootServer(password);
+        bootServer(password.trim());
         rl.close();
     });
 

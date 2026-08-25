@@ -7,10 +7,10 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-const EXPECTED_HASH = '1f6c49cc8b7fdb2c8f85f1c4e97eb3f1737e8c3b77be32bc9d5926ec0e0db129'; // SHA-256 for 'sumitpatel123'
+const EXPECTED_HASH = 'f88457c01a328e71cb972fb9d821df264e91717f533c37ef62b44f25ac870138'; // SHA-256 for 'sumitpatel123'
 
 rl.question('Enter Developer Password to start the frontend: ', (password) => {
-    const hash = crypto.createHash('sha256').update(password).digest('hex');
+    const hash = crypto.createHash('sha256').update(password.trim()).digest('hex');
     
     if (hash === EXPECTED_HASH) {
         console.log('✅ Access Granted. Starting Vite Dev Server...');
