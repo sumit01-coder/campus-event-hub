@@ -1,5 +1,8 @@
 const User = require('../models/User');
 const Event = require('../models/Event');
+const Registration = require('../models/Registration');
+const os = require('os');
+const mongoose = require('mongoose');
 
 // @desc    Get Admin Dashboard Stats
 // @route   GET /api/admin/stats
@@ -86,9 +89,77 @@ const updateOrganizerStatus = async (req, res) => {
     }
 };
 
+// @desc    Get all events system-wide
+// @route   GET /api/admin/events
+// @access  Private (Admin)
+const getAllEvents = async (req, res) => {
+    try {
+        const events = await Event.find()
+            .populate('organizerId', 'name email')
+            .sort({ createdAt: -1 });
+        res.json(events);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to fetch events', error: error.message });
+    }
+};
+
+// @desc    Get all registrations system-wide
+// @route   GET /api/admin/registrations
+// @access  Private (Admin)
+const getAllRegistrations = async (req, res) => {
+    try {
+        const registrations = await Registration.find()
+            .populate('userId', 'name email')
+            .populate('eventId', 'title category date')
+            .sort({ createdAt: -1 });
+        res.json(registrations);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to fetch registrations', error: error.message });
+    }
+};
+
+// @desc    Get system health metrics
+// @route   GET /api/admin/health
+// @access  Private (Admin)
+const getSystemHealth = async (req, res) => {
+    try {
+        const totalMemory = os.totalmem();
+        const freeMemory = os.freemem();
+        const usedMemory = totalMemory - freeMemory;
+        
+        const healthData = {
+            uptime: process.uptime(),
+            memory: {
+                total: (totalMemory / 1024 / 1024 / 1024).toFixed(2) + ' GB',
+                free: (freeMemory / 1024 / 1024 / 1024).toFixed(2) + ' GB',
+                used: (usedMemory / 1024 / 1024 / 1024).toFixed(2) + ' GB',
+                usedPercentage: ((usedMemory / totalMemory) * 100).toFixed(1)
+            },
+            cpu: {
+                cores: os.cpus().length,
+                loadAvg: os.loadavg()
+            },
+            database: {
+                status: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+                name: mongoose.connection.name
+            },
+            timestamp: new Date()
+        };
+        
+        res.json(healthData);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch health data', error: error.message });
+    }
+};
+
 module.exports = {
     getDashboardStats,
     getUsers,
     getOrganizers,
-    updateOrganizerStatus
+    updateOrganizerStatus,
+    getAllEvents,
+    getAllRegistrations,
+    getSystemHealth
 };

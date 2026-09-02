@@ -91,6 +91,11 @@ export default function EventCard({ event, onViewPass }) {
             />
           );
         })()}
+        {event.date && new Date(event.date) < new Date() && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-md z-10 uppercase tracking-wider">
+            Closed
+          </div>
+        )}
         {event.userReg ? (
           <button 
             onClick={(e) => { e.stopPropagation(); if(onViewPass) onViewPass(event); }}

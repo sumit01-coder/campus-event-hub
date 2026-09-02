@@ -610,6 +610,85 @@ const toggleLikeEvent = async (req, res) => {
     }
 };
 
+// @desc    Get event availability
+// @route   GET /api/events/:id/availability
+// @access  Public
+const getEventAvailability = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+        
+        const registeredCount = await Registration.countDocuments({ 
+            eventId: event._id, 
+            status: { $ne: 'cancelled' } 
+        });
+
+        const capacity = event.capacity;
+        const available_seats = Math.max(0, capacity - registeredCount);
+        
+        let registration_open = true;
+        if (available_seats <= 0) registration_open = false;
+        if (event.registrationDeadline && new Date() > new Date(event.registrationDeadline)) registration_open = false;
+        if (new Date() > new Date(event.date)) registration_open = false;
+
+        res.json({
+            capacity,
+            registered: registeredCount,
+            available_seats,
+            registration_open
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Recommend events based on preferences
+// @route   POST /api/events/recommend
+// @access  Public
+const recommendEvents = async (req, res) => {
+    try {
+        const { interest, date, category } = req.body;
+        const query = { date: { $gte: new Date() } }; // only future events
+
+        if (category) {
+            query.category = { $regex: new RegExp(category, 'i') };
+        }
+        
+        if (interest) {
+            query.$or = [
+                { title: { $regex: new RegExp(interest, 'i') } },
+                { description: { $regex: new RegExp(interest, 'i') } }
+            ];
+        }
+
+        // Just fetching matching events for now, could be enhanced with ML or more complex logic
+        const events = await Event.find(query)
+            .populate('organizerId', 'name email')
+            .sort({ date: 1 })
+            .limit(5);
+
+        // Calculate availability for these events to enrich response
+        const enrichedEvents = await Promise.all(events.map(async (event) => {
+            const registeredCount = await Registration.countDocuments({ 
+                eventId: event._id, 
+                status: { $ne: 'cancelled' } 
+            });
+            const available_seats = Math.max(0, event.capacity - registeredCount);
+            return {
+                ...event.toObject(),
+                available_seats,
+                registration_open: available_seats > 0 && (!event.registrationDeadline || new Date() <= new Date(event.registrationDeadline))
+            };
+        }));
+
+        res.json(enrichedEvents);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
 module.exports = {
     getEvents,
     getEventById,
@@ -624,5 +703,7 @@ module.exports = {
     removeCoordinator,
     extractProblemStatements,
     releaseResults,
-    toggleLikeEvent
+    toggleLikeEvent,
+    getEventAvailability,
+    recommendEvents
 };

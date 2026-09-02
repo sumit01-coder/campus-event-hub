@@ -8,6 +8,8 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { initErrorTracker } from './utils/errorTracker';
+import AIAssistant from './components/AIAssistant';
+import WebMCPDemoPanel from './components/WebMCPDemoPanel';
 
 initErrorTracker();
 
@@ -47,6 +49,11 @@ const AdminUsers = React.lazy(() => import('./pages/admin/AdminUsers'));
 const AdminOrganizers = React.lazy(() => import('./pages/admin/AdminOrganizers'));
 const AdminPlaceholder = React.lazy(() => import('./pages/admin/AdminPlaceholder'));
 const AdminLogs = React.lazy(() => import('./pages/admin/AdminLogs'));
+const AdminEvents = React.lazy(() => import('./pages/admin/AdminEvents'));
+const AdminRegistrations = React.lazy(() => import('./pages/admin/AdminRegistrations'));
+const AdminIssues = React.lazy(() => import('./pages/admin/AdminIssues'));
+const AdminReports = React.lazy(() => import('./pages/admin/AdminReports'));
+const AdminHealth = React.lazy(() => import('./pages/admin/AdminHealth'));
 
 function AdminRoute({ children }) {
   const { admin, loading } = React.useContext(AdminContext);
@@ -102,13 +109,13 @@ function App() {
                 <AdminLogs />
               </AdminRoute>
             } />
-            <Route path="/admin/events" element={<AdminRoute><AdminPlaceholder title="Events" description="Moderate and manage all events published on the platform." /></AdminRoute>} />
-            <Route path="/admin/registrations" element={<AdminRoute><AdminPlaceholder title="Registrations" description="View system-wide event registrations and attendance data." /></AdminRoute>} />
+            <Route path="/admin/events" element={<AdminRoute><AdminEvents /></AdminRoute>} />
+            <Route path="/admin/registrations" element={<AdminRoute><AdminRegistrations /></AdminRoute>} />
             <Route path="/admin/payments" element={<AdminRoute><AdminPlaceholder title="Payments" description="Manage transactions, payouts, and financial reports." /></AdminRoute>} />
             
-            <Route path="/admin/issues" element={<AdminRoute><AdminPlaceholder title="Issues & Support" description="Handle user reports, disputes, and support tickets." /></AdminRoute>} />
-            <Route path="/admin/reports" element={<AdminRoute><AdminPlaceholder title="Reports" description="Generate and view detailed system analytics and reports." /></AdminRoute>} />
-            <Route path="/admin/health" element={<AdminRoute><AdminPlaceholder title="System Health" description="Monitor server metrics, database performance, and API status." /></AdminRoute>} />
+            <Route path="/admin/issues" element={<AdminRoute><AdminIssues /></AdminRoute>} />
+            <Route path="/admin/reports" element={<AdminRoute><AdminReports /></AdminRoute>} />
+            <Route path="/admin/health" element={<AdminRoute><AdminHealth /></AdminRoute>} />
             <Route path="/admin/audit" element={<AdminRoute><AdminPlaceholder title="Audit Logs" description="Review security events, admin actions, and system logs." /></AdminRoute>} />
             <Route path="/admin/settings" element={<AdminRoute><AdminPlaceholder title="Platform Settings" description="Configure global system variables and platform policies." /></AdminRoute>} />
             
@@ -126,6 +133,8 @@ function App() {
           <Route path="/cookies" element={<CookiePolicy />} />
           </Routes>
           </React.Suspense>
+          <AIAssistant />
+          <WebMCPDemoPanel />
         </Router>
         </SidebarProvider>
       </AdminProvider>

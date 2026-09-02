@@ -21,7 +21,7 @@ export default function Badges() {
         .catch(err => console.error("Failed to fetch registrations", err));
         
       api.get(`/events?organizerId=${user._id}`)
-        .then(res => setOrganizerCount(res.data.length))
+        .then(res => setOrganizerCount(res.data.total || (res.data.events && res.data.events.length) || 0))
         .catch(err => console.error("Failed to fetch hosted events", err));
     }
   }, [user]);

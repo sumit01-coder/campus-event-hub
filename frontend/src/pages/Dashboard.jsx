@@ -47,6 +47,56 @@ export default function Dashboard() {
     fetchEvents(1);
   }, []);
 
+  const getFilteredEvents = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return events.filter(event => {
+      const eventDate = new Date(event.date);
+      
+      switch (activeTab) {
+        case 'all':
+          return eventDate >= today;
+        case 'popular':
+          return eventDate >= today;
+        case 'upcoming':
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return eventDate >= tomorrow;
+        case 'today':
+          const tomorrowDay = new Date(today);
+          tomorrowDay.setDate(tomorrowDay.getDate() + 1);
+          return eventDate >= today && eventDate < tomorrowDay;
+        case 'weekend':
+          const day = today.getDay();
+          const diffToFriday = day === 0 ? -2 : (5 - day);
+          const friday = new Date(today);
+          friday.setDate(today.getDate() + diffToFriday);
+          const nextMonday = new Date(friday);
+          nextMonday.setDate(friday.getDate() + 3);
+          return eventDate >= friday && eventDate < nextMonday;
+        case 'completed':
+          return eventDate < today;
+        default:
+          return true;
+      }
+    });
+  };
+
+  const getFilteredAndSortedEvents = () => {
+    let filtered = getFilteredEvents();
+    
+    if (activeTab === 'popular') {
+      filtered = [...filtered].sort((a, b) => {
+        const popA = (a.registrationsCount || 0) + (a.likes?.length || 0);
+        const popB = (b.registrationsCount || 0) + (b.likes?.length || 0);
+        return popB - popA;
+      });
+    }
+    
+    return filtered;
+  };
+
   return (
     <div className={`min-h-screen bg-[#F8FAFC] flex pt-20 transition-all duration-300 pl-0 ${isOpen ? 'md:pl-64' : 'md:pl-[72px]'}`}>
       <Navbar />
@@ -132,14 +182,29 @@ export default function Dashboard() {
               >
                 <TrendingUp size={16} /> Popular
               </button>
-              <button className="flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm">
+              <button 
+                onClick={() => setActiveTab('upcoming')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold transition-all duration-300 ${activeTab === 'upcoming' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)] -translate-y-0.5' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100 hover:-translate-y-0.5 hover:shadow-sm'}`}
+              >
                 <CalendarDays size={16} /> Upcoming
               </button>
-              <button className="hidden lg:flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm">
+              <button 
+                onClick={() => setActiveTab('today')}
+                className={`hidden lg:flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold transition-all duration-300 ${activeTab === 'today' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)] -translate-y-0.5' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100 hover:-translate-y-0.5 hover:shadow-sm'}`}
+              >
                 <CalendarDays size={16} /> Today
               </button>
-              <button className="hidden lg:flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm">
+              <button 
+                onClick={() => setActiveTab('weekend')}
+                className={`hidden lg:flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold transition-all duration-300 ${activeTab === 'weekend' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)] -translate-y-0.5' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100 hover:-translate-y-0.5 hover:shadow-sm'}`}
+              >
                 <CalendarDays size={16} /> This Weekend
+              </button>
+              <button 
+                onClick={() => setActiveTab('completed')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-[13px] font-bold transition-all duration-300 ${activeTab === 'completed' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)] -translate-y-0.5' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100 hover:-translate-y-0.5 hover:shadow-sm'}`}
+              >
+                <CalendarX2 size={16} /> Completed
               </button>
             </div>
             
@@ -158,7 +223,7 @@ export default function Dashboard() {
               <Loader2 className="animate-spin text-[#2563EB]" size={40} />
               <p className="text-gray-500 font-medium animate-pulse">Loading amazing events...</p>
             </div>
-          ) : events.length === 0 ? (
+          ) : getFilteredAndSortedEvents().length === 0 ? (
             /* Wavy Empty State */
             <div className="w-full bg-white rounded-[32px] shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-gray-100 p-16 flex flex-col items-center justify-center text-center relative overflow-hidden mb-12">
               {/* Wavy Background SVG */}
@@ -184,7 +249,7 @@ export default function Dashboard() {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3 relative z-10 tracking-tight">No events found 🥺</h3>
               <p className="text-gray-500 max-w-md mx-auto mb-8 relative z-10 font-medium">
-                Looks like there are no upcoming events published right now. Check back later or be the first to host one!
+                Looks like there are no {activeTab} events published right now. Check back later or be the first to host one!
               </p>
               <button 
                 onClick={() => navigate('/host')}
@@ -196,7 +261,7 @@ export default function Dashboard() {
           ) : (
             <div className="mb-12">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {events.map(event => (
+                {getFilteredAndSortedEvents().map(event => (
                   <EventCard key={event._id} event={event} />
                 ))}
               </div>

@@ -86,6 +86,8 @@ const queryRoutes = require('./routes/queryRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const logRoutes = require('./routes/logRoutes');
 const whatsappRoutes = require('./routes/whatsappRoutes');
+const scheduleRoutes = require('./routes/scheduleRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 // Use Routes
 app.use('/api/auth', authRoutes);
@@ -99,6 +101,8 @@ app.use('/api/queries', queryRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/schedules', scheduleRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Initialize Cron Jobs
 require('./jobs/reminderCron');
@@ -370,9 +374,8 @@ io.on('connection', (socket) => {
 app.use(errorHandler);
 
 // Database Connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/eventhub')
-    .then(() => console.log('MongoDB Connected'))
-    .catch(err => console.log('MongoDB Connection Error:', err));
+const connectDB = require('./config/db');
+connectDB();
 
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

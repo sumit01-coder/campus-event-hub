@@ -248,6 +248,37 @@ export default function EventDetails() {
 
   if (!event) return null;
 
+  const hasEventPassed = event.date ? new Date(event.date) < new Date() : false;
+  const isOrganizer = event.organizerId && user && (event.organizerId._id === user._id || event.organizerId === user._id);
+  const isCoordinator = event.coordinators && user && event.coordinators.some(c => c.userId === user._id);
+  const isLockedForUser = hasEventPassed && !isAlreadyRegistered && !isOrganizer && !isCoordinator;
+
+  if (isLockedForUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center pt-28 px-4">
+          <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 mb-3">Event Locked</h2>
+            <p className="text-gray-500 mb-8 leading-relaxed">
+              This event has already ended. Access to this page is restricted to enrolled participants and organizers only.
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all"
+            >
+              Go to Homepage
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   const firstImage = event.images && event.images.length > 0 ? event.images[0] : event.image;
   const imageUrl = firstImage?.startsWith('/') ? `http://localhost:5000${firstImage}` : firstImage;
 
@@ -454,7 +485,7 @@ export default function EventDetails() {
                           </div>
                         )}
 
-                        {!q.isResolved && user && user._id === q.user.id && (
+                        {!q.isResolved && !hasEventPassed && user && user._id === q.user.id && (
                           <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-5">
                             <div className="flex gap-2">
                               <input
@@ -484,7 +515,11 @@ export default function EventDetails() {
                   )}
                 </div>
 
-                {user ? (
+                {hasEventPassed ? (
+                  <div className="text-center py-4 bg-gray-50 rounded-2xl border border-gray-100 text-sm font-bold text-gray-500 shadow-inner mt-2">
+                    This event has ended. Q&A is now closed.
+                  </div>
+                ) : user ? (
                   <form onSubmit={handleSendQuery} className="relative mt-2">
                     <div className="relative group">
                       <input 
@@ -627,7 +662,7 @@ export default function EventDetails() {
                         <Ticket size={18} /> View Pass
                       </button>
                       
-                      {new Date() < new Date(event.registrationDeadline) && (
+                      {!hasEventPassed && new Date() < new Date(event.registrationDeadline) && (
                         <button 
                           onClick={() => {
                             setIsEditMode(true);
@@ -640,26 +675,41 @@ export default function EventDetails() {
                       )}
                     </div>
 
-                    <button 
-                      onClick={handleCancelRegistration}
-                      disabled={isCancelling || registrationDetails?.cancellationRequested}
-                      className="w-full bg-white/10 hover:bg-red-500/20 text-red-100 font-semibold text-sm py-3 rounded-xl border border-transparent hover:border-red-400/30 transition-all flex justify-center items-center gap-2 disabled:opacity-50"
-                    >
-                      {isCancelling ? <><Loader2 className="animate-spin" size={16} /> Cancelling...</> : 
-                       registrationDetails?.cancellationRequested ? 'Leave Request Pending...' : 'Cancel Registration'}
-                    </button>
+                    {!hasEventPassed && (
+                      <button 
+                        onClick={handleCancelRegistration}
+                        disabled={isCancelling || registrationDetails?.cancellationRequested}
+                        className="w-full bg-white/10 hover:bg-red-500/20 text-red-100 font-semibold text-sm py-3 rounded-xl border border-transparent hover:border-red-400/30 transition-all flex justify-center items-center gap-2 disabled:opacity-50"
+                      >
+                        {isCancelling ? <><Loader2 className="animate-spin" size={16} /> Cancelling...</> : 
+                         registrationDetails?.cancellationRequested ? 'Leave Request Pending...' : 'Cancel Registration'}
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="w-full bg-white text-indigo-900 font-bold text-lg py-4 rounded-xl shadow-lg hover:bg-gray-50 active:scale-95 transition-all flex justify-center items-center gap-2"
-                  >
-                    {event.isPaid && event.price > 0 ? `Register & Pay ₹${event.price}` : 'Register Now'}
-                  </button>
+                  hasEventPassed ? (
+                    <div className="w-full bg-white/10 text-gray-300 font-bold text-sm py-3 rounded-xl border border-white/10 flex justify-center items-center gap-2">
+                      Registration Closed
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        if (!user) {
+                          toast.error('Please log in to register for events.');
+                          navigate('/login');
+                          return;
+                        }
+                        setIsModalOpen(true);
+                      }}
+                      className="w-full bg-white text-indigo-900 font-bold text-lg py-4 rounded-xl shadow-lg hover:bg-gray-50 active:scale-95 transition-all flex justify-center items-center gap-2"
+                    >
+                      {event.isPaid && event.price > 0 ? `Register & Pay ₹${event.price}` : 'Register Now'}
+                    </button>
+                  )
                 )}
 
                 <p className="text-xs text-indigo-200 mt-4 font-medium opacity-80">
-                  {isAlreadyRegistered ? 'Check your My Events dashboard' : 'Secure your spot before it fills up!'}
+                  {hasEventPassed ? 'Event Ended (View-Only Mode)' : isAlreadyRegistered ? 'Check your My Events dashboard' : 'Secure your spot before it fills up!'}
                 </p>
               </div>
 

@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
-import { ShieldAlert, Clock, XCircle, Send, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Tag, Users, DollarSign, Loader2, Upload, Bold, Italic, Underline, List, ListOrdered, Link2, LayoutList, ChevronRight, ChevronDown, CheckCircle, Info, PenTool, Eye, Edit3, ArrowRight, ExternalLink, Plus, Trash2, Settings } from 'lucide-react';
+import { ShieldAlert, Clock, XCircle, Send, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Tag, Users, DollarSign, Loader2, Upload, Bold, Italic, Underline, List, ListOrdered, Link2, LayoutList, ChevronRight, ChevronDown, CheckCircle, Info, PenTool, Eye, Edit3, ArrowRight, ExternalLink, Plus, Trash2, Settings, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -27,6 +27,11 @@ export default function HostEvent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  
+  // AI Generator States
+  const [isAIPopoverOpen, setIsAIPopoverOpen] = useState(false);
+  const [aiKeywords, setAiKeywords] = useState('');
+  const [isAIGenerating, setIsAIGenerating] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -252,6 +257,32 @@ export default function HostEvent() {
       newQuestions[qIndex].options[oIndex] = value;
       return { ...prev, customQuestions: newQuestions };
     });
+  };
+
+  const handleAIGenerate = async () => {
+    if (!formData.title) {
+      toast.error('Please enter an event title first');
+      return;
+    }
+    if (!aiKeywords.trim()) {
+      toast.error('Please enter some keywords/details');
+      return;
+    }
+    setIsAIGenerating(true);
+    try {
+      const { data } = await api.post('/public/ai-generate', {
+        title: formData.title,
+        category: formData.category,
+        keywords: aiKeywords
+      });
+      setFormData(prev => ({ ...prev, description: data.text }));
+      setIsAIPopoverOpen(false);
+      toast.success('AI description generated!');
+    } catch (error) {
+      toast.error('AI generation failed');
+    } finally {
+      setIsAIGenerating(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -787,22 +818,31 @@ export default function HostEvent() {
                   
                   <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
                     {/* Mocked Rich Text Toolbar */}
-                    <div className="bg-gray-50 border-b border-gray-200 py-2 px-3 flex items-center gap-4 text-gray-500">
-                      <div className="flex items-center gap-2">
-                        <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><Bold size={16} /></button>
-                        <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><Italic size={16} /></button>
-                        <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><Underline size={16} /></button>
+                    <div className="bg-gray-50 border-b border-gray-200 py-2 px-3 flex justify-between items-center text-gray-500">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><Bold size={16} /></button>
+                          <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><Italic size={16} /></button>
+                          <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><Underline size={16} /></button>
+                        </div>
+                        <div className="w-[1px] h-4 bg-gray-300"></div>
+                        <div className="flex items-center gap-2">
+                          <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><List size={16} /></button>
+                          <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><ListOrdered size={16} /></button>
+                        </div>
+                        <div className="w-[1px] h-4 bg-gray-300"></div>
+                        <div className="flex items-center gap-2">
+                          <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><Link2 size={16} /></button>
+                          <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><ImageIcon size={16} /></button>
+                        </div>
                       </div>
-                      <div className="w-[1px] h-4 bg-gray-300"></div>
-                      <div className="flex items-center gap-2">
-                        <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><List size={16} /></button>
-                        <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><ListOrdered size={16} /></button>
-                      </div>
-                      <div className="w-[1px] h-4 bg-gray-300"></div>
-                      <div className="flex items-center gap-2">
-                        <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><Link2 size={16} /></button>
-                        <button type="button" className="hover:text-gray-900 hover:bg-gray-200 p-1 rounded"><ImageIcon size={16} /></button>
-                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => setIsAIPopoverOpen(true)}
+                        className="text-primary hover:text-blue-700 font-bold text-xs flex items-center gap-1 bg-blue-50 border border-blue-100 hover:bg-blue-100 px-2 py-1 rounded transition-colors"
+                      >
+                        <Sparkles size={12} /> Generate with AI
+                      </button>
                     </div>
                     
                     <textarea 

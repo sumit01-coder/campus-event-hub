@@ -1,18 +1,40 @@
 services:
+  # Node.js Backend Service
   - type: web
-    name: campuseventhub-api
+    name: campuseventhub-backend
     env: node
     rootDir: backend
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: npm start
     envVars:
-      - key: PORT
-        value: 10000
       - key: NODE_ENV
         value: production
-      - key: DEVELOPER_PASSWORD
-        sync: false
+      - key: PORT
+        value: 5000
       - key: MONGO_URI
-        sync: false
+        sync: false # Requires manual entry in Render Dashboard
       - key: JWT_SECRET
+        generateValue: true
+      - key: CLOUDINARY_CLOUD_NAME
         sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: REDIS_URL
+        sync: false # Optional: If you use Redis for caching
+
+  # Python AI Service
+  - type: web
+    name: campuseventhub-ai
+    env: python
+    rootDir: ai_service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0

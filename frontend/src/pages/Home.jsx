@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { ShieldCheck, Calendar, Zap, Heart, CheckCircle2, MapPin, Users, Target, ThumbsUp, ArrowRight, Play, Star, TrendingUp, Music, ArrowUpRight, CalendarDays } from 'lucide-react';
+import { ShieldCheck, Calendar, Zap, Heart, CheckCircle2, MapPin, Users, Target, ThumbsUp, ArrowRight, Play, Star, TrendingUp, Music, ArrowUpRight, CalendarDays, Bot, MessageSquare, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import EventCard from '../components/EventCard';
 
 export default function Home() {
   const [stats, setStats] = useState({
@@ -30,7 +31,13 @@ export default function Home() {
       
       try {
         const { data } = await api.get('/events');
-        setFeaturedEvents(data.slice(0, 3));
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        // Filter: date is today or in the future
+        const upcoming = (data.events || []).filter(event => new Date(event.date) >= today);
+        // Sort: soonest first
+        const sorted = upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
+        setFeaturedEvents(sorted.slice(0, 3));
       } catch (err) {
         console.error('Error fetching events:', err);
       }
@@ -79,12 +86,12 @@ export default function Home() {
               </div>
 
               <h1 className="text-[3rem] sm:text-[4rem] lg:text-[4.5rem] font-extrabold leading-[1.1] tracking-tight text-gray-900 mb-6">
-                The all-in-one platform for <br className="hidden sm:block" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">campus experiences.</span>
+                Your Campus. Your Events. <br className="hidden sm:block" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">One Intelligent Hub.</span>
               </h1>
 
               <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                Replace disjointed forms and spreadsheets with a unified event management system. Built for organizers, loved by students.
+                Discover, manage, and register for campus events with the power of AI. Powered by WebMCP, your intelligent assistant can manage your entire campus life.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-16">
@@ -148,7 +155,12 @@ export default function Home() {
               {displayCards.map((card, idx) => (
                 <div key={idx} className={card.className}>
                   <div className={`w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden ${card.colorClass}`}>
-                    <img src={card.image} alt={card.title} className="w-full h-full object-cover" />
+                    <img 
+                      src={card.image?.startsWith('/') ? `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}${card.image}` : card.image} 
+                      alt={card.title} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60'; }}
+                    />
                   </div>
                   <div className="overflow-hidden">
                     <h5 className="font-bold text-gray-900 text-sm truncate w-full" title={card.title}>{card.title}</h5>
@@ -226,6 +238,93 @@ export default function Home() {
                 </div>
               </div>
 
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Upcoming Events Section */}
+      <section className="py-20 bg-[#F8FAFC]">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-semibold text-sm mb-4">
+                <Star size={16} />
+                Featured & Upcoming
+              </div>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">
+                Discover your next experience
+              </h2>
+            </div>
+            <Link to="/dashboard" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-800 transition-colors group">
+              View all events 
+              <ArrowRight size={18} className="transform group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          {featuredEvents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredEvents.map(event => (
+                <EventCard key={event._id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+              <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 mb-2">No upcoming events right now</h3>
+              <p className="text-gray-500">Check back later or host your own event!</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* WebMCP How It Works Section */}
+      <section className="py-24 bg-white relative overflow-hidden">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-12 relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-50 border border-purple-100 text-purple-600 font-semibold text-sm mb-4">
+              <Bot size={16} /> AI-Native Platform
+            </div>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-6">
+              Designed for Humans. <br/> Built for AI.
+            </h2>
+            <p className="text-xl text-gray-600">
+              CampusEventHub integrates WebMCP (Model Context Protocol) to let AI agents interact with the platform natively. No scraping, no guessing. Just direct API actions.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100 hover:shadow-xl transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center mb-6 relative z-10 shadow-lg">
+                <MessageSquare size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3 relative z-10">1. Ask the Assistant</h3>
+              <p className="text-gray-600 relative z-10">
+                Just tell the AI what you want. "Find me tech events next week" or "Register me for the hackathon."
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100 hover:shadow-xl transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-100 rounded-full blur-3xl opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="w-14 h-14 rounded-2xl bg-purple-600 text-white flex items-center justify-center mb-6 relative z-10 shadow-lg">
+                <Settings size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3 relative z-10">2. AI Uses WebMCP</h3>
+              <p className="text-gray-600 relative z-10">
+                The agent discovers the platform's tools via `document.modelContext` and executes structured commands seamlessly.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100 hover:shadow-xl transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-green-100 rounded-full blur-3xl opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="w-14 h-14 rounded-2xl bg-green-600 text-white flex items-center justify-center mb-6 relative z-10 shadow-lg">
+                <ShieldCheck size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3 relative z-10">3. Human in Loop</h3>
+              <p className="text-gray-600 relative z-10">
+                Destructive actions like event registration ask for your confirmation, keeping you in complete control.
+              </p>
             </div>
           </div>
         </div>
