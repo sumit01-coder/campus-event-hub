@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     MessageSquare, X, Send, Bot, User, Loader2, CheckCircle2,
     Zap, TrendingUp, Calendar, Star, Brain, ChevronDown, RotateCcw,
-    AlertCircle, Ticket, Cpu, Mic
+    AlertCircle, Ticket, Cpu, Mic, Edit3, Sparkles
 } from 'lucide-react';
 import webMCPManager from '../webmcp/WebMCPManager';
 import campusAI, { pythonBridge } from '../ai/CampusAIEngine';
@@ -196,10 +197,14 @@ const QUICK_ACTIONS = [
     { label: 'Find Events', icon: Calendar, query: 'find events happening soon' },
     { label: 'Recommend', icon: Star, query: 'recommend something for me' },
     { label: 'My Schedule', icon: Ticket, query: 'show my events' },
+    { label: 'Host Event', icon: Edit3, query: 'create a tech event called My Meetup next Friday at 10 AM' },
 ];
 
 // ─── MAIN AI ASSISTANT ────────────────────────────────────────────────────
 const AIAssistant = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         {
@@ -227,6 +232,17 @@ const AIAssistant = () => {
             pythonBridge.isAvailable().then(avail => setPythonOnline(avail));
         }
     }, [isOpen, pythonOnline]);
+
+    // Listen for WebMCP navigation events
+    useEffect(() => {
+        const handleNavigate = (e) => {
+            if (e.detail?.path) {
+                navigate(e.detail.path);
+            }
+        };
+        window.addEventListener('webmcp_navigate', handleNavigate);
+        return () => window.removeEventListener('webmcp_navigate', handleNavigate);
+    }, [navigate]);
 
     // Initialize Web Speech API
     useEffect(() => {
@@ -325,12 +341,14 @@ const AIAssistant = () => {
                     parsed = await pythonBridge.analyze(
                         text,
                         campusAI.contextMemory.slice(-6),
-                        campusAI.userInterests
+                        campusAI.userInterests,
+                        location.pathname
                     );
                     // Also run JS parse to update local memory state
-                    const jsParsed = campusAI.parse(text);
+                    const jsParsed = campusAI.parse(text, location.pathname);
                     // Merge: prefer Python intent/entities, use JS memory
                     parsed.resolvedEvent = parsed.resolvedEvent || jsParsed.resolvedEvent;
+                    parsed.currentPath = location.pathname;
                     if (!parsed.entities.inheritedCategory) {
                         parsed.entities.inheritedCategory = jsParsed.entities.inheritedCategory;
                     }
@@ -445,11 +463,14 @@ const AIAssistant = () => {
             {/* FAB */}
             <button
                 onClick={() => { setIsOpen(true); setTimeout(() => inputRef.current?.focus(), 200); }}
-                className={`fixed bottom-6 right-6 p-4 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-110 z-40 ${isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'}`}
+                className={`fixed bottom-6 right-6 p-4 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-fuchsia-500 text-white shadow-2xl shadow-purple-500/40 hover:shadow-purple-500/60 transition-all duration-300 transform hover:scale-110 hover:-translate-y-1 group z-40 ${isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'}`}
             >
-                <div className="relative">
-                    <Brain size={22} />
-                    <span className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse border border-white" />
+                {/* Outer glowing ring animation */}
+                <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-ping opacity-75 group-hover:opacity-100 transition-opacity duration-300"></div>
+                
+                <div className="relative z-10 flex items-center justify-center">
+                    <Sparkles size={24} className="animate-pulse" />
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-purple-600 shadow-sm" />
                 </div>
             </button>
 

@@ -39,11 +39,11 @@ class PythonAIBridge {
      * Analyze a message using the Python NLP service.
      * Returns the same shape as CampusAIEngine.parse() for drop-in use.
      */
-    async analyze(message, conversationHistory = [], userInterests = []) {
+    async analyze(message, conversationHistory = [], userInterests = [], currentPath = null) {
         const res = await fetch('/api/ai/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, conversation_history: conversationHistory, user_interests: userInterests }),
+            body: JSON.stringify({ message, conversation_history: conversationHistory, user_interests: userInterests, current_path: currentPath }),
             signal: AbortSignal.timeout(6000),
         });
         if (!res.ok) throw new Error(`Python /analyze failed: ${res.status}`);
@@ -51,10 +51,12 @@ class PythonAIBridge {
         // Normalize to the same shape CampusAIEngine.parse() returns
         return {
             intent: data.intent,
+            intents: data.intents || [data.intent],
             confidence: data.confidence,
             entities: {
                 categories: data.entities?.categories || [],
                 dateRef: data.entities?.date_ref || null,
+                timeRef: data.entities?.time_ref || null,
                 eventNameHint: data.entities?.event_name_hint || null,
                 numberRef: data.entities?.number_ref || null,
                 locationRef: data.entities?.location_ref || null,
@@ -66,6 +68,7 @@ class PythonAIBridge {
             rawText: message,
             resolvedEvent: data.context?.last_mentioned_event || null,
             userInterests,
+            currentPath: data.current_path || null,
             needsClarification: data.needs_clarification,
             _pythonMs: data.processing_ms,
             _source: 'python',
@@ -157,6 +160,17 @@ const INTENT_PATTERNS = [
         weight: 1.0,
     },
     {
+        intent: 'HOSTED_EVENTS',
+        patterns: [
+            /\bmy (hosted|created|organized) events?\b/i,
+            /\b(events? i (host|hosted|created|organized))\b/i,
+            /\b(last|previous) host(ed)? event\b/i,
+            /\bshows? previous host event\b/i,
+        ],
+        keywords: ['hosted events', 'my hosted event', 'events i host', 'events i created', 'last host event', 'previous host event'],
+        weight: 1.2,
+    },
+    {
         intent: 'RECOMMEND',
         patterns: [
             /\b(recommend|suggest|what should i|any good)\b/i,
@@ -223,6 +237,14 @@ const INTENT_PATTERNS = [
         weight: 1.0,
     },
     {
+        intent: 'NAVIGATE',
+        patterns: [
+            /\b(go to|take me to|open|show me (the )?page|navigate to)\b/i,
+        ],
+        keywords: ['go to', 'take me to', 'open page', 'navigate to'],
+        weight: 1.3,
+    },
+    {
         intent: 'HELP',
         patterns: [
             /\b(help|how do i|what can you|commands|capabilities|guide me)\b/i,
@@ -261,7 +283,7 @@ class CampusAIEngine {
         this.sessionData = { searchedCategories: [], viewedEvents: [], registeredInSession: [] };
     }
 
-    parse(userMessage) {
+    parse(userMessage, currentPath = null) {
         const text = userMessage.trim();
         const intentResult = this._classifyIntent(text);
         const entities = this._extractEntities(text);
@@ -271,11 +293,13 @@ class CampusAIEngine {
 
         const parsed = {
             intent: intentResult.intent,
+            intents: intentResult.intents,
             confidence: intentResult.confidence,
             entities: enrichedEntities,
             rawText: text,
             resolvedEvent: this.lastMentionedEvent,
             userInterests: [...this.userInterests],
+            currentPath,
             needsClarification: intentResult.confidence < 0.4,
         };
 
@@ -296,25 +320,54 @@ class CampusAIEngine {
     }
 
     _classifyIntent(text) {
-        const scores = {};
-        for (const intentDef of INTENT_PATTERNS) {
-            let score = 0;
-            for (const pattern of intentDef.patterns) {
-                if (pattern.test(text)) score += 2 * intentDef.weight;
+        // Multi-intent splitting for JS engine
+        const clauses = text.split(/\b(?:and|then|also)\b/i)
+            .map(c => c.trim())
+            .filter(c => c.length > 0 && !['and', 'then', 'also'].includes(c.toLowerCase()));
+        
+        const finalClauses = clauses.length > 0 ? clauses : [text];
+        const intentsFound = [];
+        const allScoresCombined = {};
+
+        for (const clause of finalClauses) {
+            const scores = {};
+            for (const intentDef of INTENT_PATTERNS) {
+                let score = 0;
+                for (const pattern of intentDef.patterns) {
+                    if (pattern.test(clause)) score += 2 * intentDef.weight;
+                }
+                const lowerText = clause.toLowerCase();
+                for (const kw of intentDef.keywords) {
+                    if (lowerText.includes(kw.toLowerCase())) score += 1 * intentDef.weight;
+                }
+                if (score > 0) scores[intentDef.intent] = score;
             }
-            const lowerText = text.toLowerCase();
-            for (const kw of intentDef.keywords) {
-                if (lowerText.includes(kw.toLowerCase())) score += 1 * intentDef.weight;
+
+            if (Object.keys(scores).length > 0) {
+                const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+                const topIntent = sorted[0][0];
+                const topScore = sorted[0][1];
+                
+                for (const [k, v] of Object.entries(scores)) {
+                    allScoresCombined[k] = Math.max(allScoresCombined[k] || 0, v);
+                }
+
+                if (topScore > 0 && !intentsFound.includes(topIntent)) {
+                    intentsFound.push(topIntent);
+                }
             }
-            if (score > 0) scores[intentDef.intent] = score;
         }
 
-        if (Object.keys(scores).length === 0) return { intent: 'UNKNOWN', confidence: 0 };
+        if (intentsFound.length === 0) return { intent: 'UNKNOWN', intents: ['UNKNOWN'], confidence: 0 };
 
-        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        const topScore = sorted[0][1];
-        const confidence = Math.min(topScore / 10, 1);
-        return { intent: sorted[0][0], confidence, allScores: Object.fromEntries(sorted) };
+        const topOverallScore = Math.max(...Object.values(allScoresCombined));
+        const confidence = Math.min(topOverallScore / 10, 1);
+        return { 
+            intent: intentsFound[0], 
+            intents: intentsFound,
+            confidence, 
+            allScores: allScoresCombined 
+        };
     }
 
     _extractEntities(text) {

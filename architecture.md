@@ -26,31 +26,25 @@ The system does not rely purely on static roles. It uses contextual permissions 
 
 ## 3. Database Schema Overview (Multi-Tenant Ready)
 
-### Core Collections
-- **`users`**: name, email, password, role, `collegeId`, profile_details.
-- **`events`**: title, description, coverImage, dates, venue, rules, `organizerId`, `announcements` array, `ratings` array (1-5 stars & reviews).
-- **`eventActivities`**: sub-events mapped to a parent event.
-- **`venues`**: Official campus locations.
+### Core Collections & Models
+The system currently maintains 8 active Mongoose models with strict validation and compound indexing:
+- **`users` (`User.js`)**: name, email (unique), phone, password, identityVerification (OCR extracted data & live photo), capabilities (`participant`, `organizer`, `volunteer`), profile, organizerProfile, paymentConfig (UPI & QR code).
+- **`events` (`Event.js`)**: title, description, date, time, venue, category, isPaid, price, capacity, organizerId (ref: User), coordinators array, participationType, maxGroupSize, registeredCount, announcements, ratings (1-5 stars & reviews), isHackathon, problemStatements, results.
+- **`registrations` (`Registration.js`)**: userId (ref: User), eventId (ref: Event), participantName, email, phone, participationType, teamCode (sparse unique index), isTeamLeader, teamSize, joinedTeamCode, status, paymentStatus, paymentProof, preferences, projectSubmission, ticketTierId, customAnswers. Compound unique index on `(userId + eventId)`.
+- **`queries` (`Query.js`)**: eventId (ref: Event), user (id, name), text, isResolved, replies array (sender, text, timestamp) for real-time WebSocket Q&A.
+- **`schedules` (`Schedule.js`)**: userId (ref: User), eventId (ref: Event), startTime, endTime. Compound unique index on `(userId + eventId)`.
+- **`notifications` (`Notification.js`)**: userId (ref: User), title, message, type (info, success, warning), isRead, link.
+- **`logs` (`Log.js`)**: level, message, context, userId, url, details, createdAt. Automated TTL index with 30-day expiration (`expireAfterSeconds: 2592000`).
+- **`admins` (`Admin.js`)**: name, email (unique), password, isSuperAdmin, permissions array.
 
-### Registration & Finance
-- **`registrationForms`**: Custom JSON structure defining the fields organizers requested.
-- **`registrations`**: user, event, status, formData JSON, team (optional), qrData.
-- **`teams`**: name, leader, members array.
-- **`payments`**: orderId, paymentId, amount, status (Pending, Success, Failed), user, event, registrationId.
+### Visual Architecture & Model Diagrams
+The complete visual architecture diagram and model cards are generated and maintained in:
+- Master Schema Map: `docs/assets/images/campus-eventhub-models-collection.png`
+- Individual Model Diagrams: `docs/assets/images/models/model_*.png`
+- LinkedIn Showcase Banner: `docs/assets/images/campus-eventhub-linkedin-showcase.png`
+- GitHub README Banner: `docs/assets/images/campus-eventhub-github-banner.png`
 
-### Operations & Post-Event
-- **`attendance`**: user, event, timestamp, scannedBy.
-- **`announcements`**: event, title, body, author.
-- **`results`**: event, participant/team, position, prize.
-- **`certificates`**: user, event, uniqueId, type.
-
-### Support & System
-- **`issues`**: title, description, category, priority, status, reporter.
-- **`auditLogs`**: user, action, entity, timestamp.
-- **`notifications`**: user, type, message, read_status.
-- **`queries`**: user, eventId, text, isResolved, replies (Live Q&A).
-
-## 4. API Design (RESTful)
+### 4. API Design (RESTful)
 
 ### Auth
 - `POST /api/auth/register`

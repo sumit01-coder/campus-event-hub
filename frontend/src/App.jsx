@@ -134,7 +134,7 @@ function App() {
           </Routes>
           </React.Suspense>
           <AIAssistant />
-          <WebMCPDemoPanel />
+          {/* <WebMCPDemoPanel /> */}
         </Router>
         </SidebarProvider>
       </AdminProvider>

@@ -47,10 +47,11 @@ Campus EventHub is a centralized, SaaS-style event management platform for unive
 - Admin Support Center (Global oversight without micromanagement).
 - System Health Monitoring & Audit Logs.
 
-### Phase 6: Scalability
+### Phase 6: Scalability & Visual Documentation
 - Multi-college SaaS architecture (Multi-tenant ready from Day 1 via `collegeId`).
 - Advanced Analytics.
 - Push Notifications & PWA optimization.
+- Visual schema diagrams and model architecture assets for GitHub & LinkedIn documentation (`docs/assets/images/models/` and `docs/assets/images/campus-eventhub-models-collection.png`).
 
 ## 4. UI/UX Principles
 - **Theme**: Warm light theme, minimal, clean, professional SaaS dashboard aesthetic.

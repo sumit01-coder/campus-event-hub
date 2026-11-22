@@ -16,33 +16,70 @@ const getTools = () => window.document.modelContext.getTools();
 const getTool = (name) => getTools().find(t => t.name === name);
 
 class WebMCPOrchestrator {
+    constructor() {
+        this.activeTask = null; // Used for multi-turn form filling
+    }
+
     /**
      * Main entry — routes parsed intent to the right tool chain.
      * Returns { response: string, events: [], rawResults: {} }
      */
     async execute(parsed) {
-        const { intent, entities, resolvedEvent, userInterests } = parsed;
-        const ctx = { intent, entities, resolvedEvent, userInterests };
-
-        try {
-            switch (intent) {
-                case 'SEARCH_EVENTS':  return await this._handleSearch(ctx);
-                case 'REGISTER':       return await this._handleRegister(ctx);
-                case 'CANCEL_REGISTRATION': return await this._handleCancel(ctx);
-                case 'MY_EVENTS':      return await this._handleMyEvents(ctx);
-                case 'RECOMMEND':      return await this._handleRecommend(ctx);
-                case 'TRENDING':       return await this._handleTrending(ctx);
-                case 'ANALYTICS':      return await this._handleAnalytics(ctx);
-                case 'SCHEDULE':       return await this._handleSchedule(ctx);
-                case 'SIMILAR_EVENTS': return await this._handleSimilar(ctx);
-                case 'USER_PROFILE':   return await this._handleProfile(ctx);
-                case 'CREATE_EVENT':   return await this._handleCreateEvent(ctx);
-                case 'HELP':           return this._handleHelp();
-                default:               return this._handleUnknown(parsed.rawText);
-            }
-        } catch (error) {
-            return { response: `I ran into an error: ${error.message}. Please try again.`, events: [], error: true };
+        // Intercept if we are in the middle of a multi-turn task
+        if (this.activeTask) {
+            return await this._handleActiveTask(parsed);
         }
+
+        const intents = parsed.intents && parsed.intents.length > 0 ? parsed.intents : [parsed.intent];
+        let combinedResponse = "";
+        let combinedEvents = [];
+        let combinedError = false;
+
+        for (const intent of intents) {
+            const ctx = { intent, entities: parsed.entities, resolvedEvent: parsed.resolvedEvent, userInterests: parsed.userInterests };
+            let result;
+            try {
+                switch (intent) {
+                    case 'SEARCH_EVENTS':  result = await this._handleSearch(ctx); break;
+                    case 'REGISTER':       result = await this._handleRegister(ctx); break;
+                    case 'CANCEL_REGISTRATION': result = await this._handleCancel(ctx); break;
+                    case 'MY_EVENTS':      result = await this._handleMyEvents(ctx); break;
+                    case 'HOSTED_EVENTS':  result = await this._handleHostedEvents(); break;
+                    case 'RECOMMEND':      result = await this._handleRecommend(ctx); break;
+                    case 'TRENDING':       result = await this._handleTrending(ctx); break;
+                    case 'ANALYTICS':      result = await this._handleAnalytics(ctx); break;
+                    case 'SCHEDULE':       result = await this._handleSchedule(ctx); break;
+                    case 'SIMILAR_EVENTS': result = await this._handleSimilar(ctx); break;
+                    case 'USER_PROFILE':   result = await this._handleProfile(ctx); break;
+                    case 'CREATE_EVENT':   result = await this._handleCreateEvent(ctx); break;
+                    case 'NAVIGATE':       result = await this._handleNavigate(parsed); break;
+                    case 'HELP':           result = this._handleHelp(); break;
+                    case 'UNKNOWN':
+                    default:               result = this._handleUnknown(parsed.rawText); break;
+                }
+                
+                if (result.response) {
+                    combinedResponse += (combinedResponse ? "\n\n" : "") + result.response;
+                }
+                if (result.events) {
+                    combinedEvents = [...combinedEvents, ...result.events];
+                }
+                if (result.error) combinedError = true;
+
+            } catch (error) {
+                combinedResponse += (combinedResponse ? "\n\n" : "") + `I ran into an error processing a step: ${error.message}.`;
+                combinedError = true;
+            }
+        }
+
+        // Deduplicate events by _id if multiple intents return the same event
+        const uniqueEvents = Array.from(new Map(combinedEvents.map(e => [e._id, e])).values());
+
+        return { 
+            response: combinedResponse || "I couldn't process that request.", 
+            events: uniqueEvents, 
+            error: combinedError 
+        };
     }
 
     async _handleSearch({ entities }) {
@@ -192,6 +229,33 @@ class WebMCPOrchestrator {
         }
 
         return { response, events: upcoming.slice(0, 3) };
+    }
+
+    async _handleHostedEvents() {
+        const hostedTool = getTool('get_hosted_events');
+        
+        const adminToken = localStorage.getItem('adminToken');
+        if (!adminToken) {
+            return { response: "You need to be logged in as an Organizer to view hosted events.", events: [] };
+        }
+
+        try {
+            const hostedEvents = await hostedTool.execute({});
+            if (!hostedEvents || hostedEvents.length === 0) {
+                return { response: "You haven't hosted any events yet. Want to create one?", events: [] };
+            }
+
+            let response = `👑 **Your Hosted Events**\n\nYou have hosted **${hostedEvents.length}** event(s).\n\n`;
+            
+            hostedEvents.slice(0, 5).forEach(e => {
+                const d = new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                response += `- **${e.title}** on ${d} (Capacity: ${e.capacity})\n`;
+            });
+            
+            return { response, events: hostedEvents.slice(0, 5) };
+        } catch (err) {
+            return { response: "Failed to fetch hosted events. Please make sure you are logged in.", events: [] };
+        }
     }
 
     async _handleRecommend({ entities, userInterests }) {
@@ -375,6 +439,88 @@ class WebMCPOrchestrator {
         };
     }
 
+    async _handleNavigate(parsed) {
+        const text = parsed.rawText.toLowerCase();
+        let targetPath = null;
+        let pageName = "";
+
+        if (text.includes("dashboard") || text.includes("profile")) {
+            targetPath = "/dashboard";
+            pageName = "Dashboard";
+        } else if (text.includes("home")) {
+            targetPath = "/";
+            pageName = "Home";
+        } else if (text.includes("event") || text.includes("explore")) {
+            targetPath = "/events";
+            pageName = "Events";
+        } else if (text.includes("admin") || text.includes("organizer")) {
+            targetPath = "/admin";
+            pageName = "Admin";
+        } else if (text.includes("help") || text.includes("support")) {
+            targetPath = "/help";
+            pageName = "Help Center";
+        } else if (text.includes("setting")) {
+            targetPath = "/settings";
+            pageName = "Settings";
+        } else if (text.includes("badge")) {
+            targetPath = "/badges";
+            pageName = "Badges";
+        } else if (text.includes("hackathon")) {
+            targetPath = "/my-hackathons";
+            pageName = "My Hackathons";
+        } else if (text.includes("host event") || text.includes("create event")) {
+            targetPath = "/host";
+            pageName = "Host Event";
+        } else if (text.includes("hosted event")) {
+            targetPath = "/hosted-events";
+            pageName = "Hosted Events";
+        } else if (text.includes("pricing") || text.includes("cost")) {
+            targetPath = "/pricing";
+            pageName = "Pricing";
+        } else if (text.includes("feature")) {
+            targetPath = "/features";
+            pageName = "Features";
+        } else if (text.includes("guideline") || text.includes("rules")) {
+            targetPath = "/guidelines";
+            pageName = "Guidelines";
+        } else if (text.includes("api") || text.includes("docs")) {
+            targetPath = "/api";
+            pageName = "API Documentation";
+        } else if (text.includes("blog")) {
+            targetPath = "/blog";
+            pageName = "Blog";
+        } else if (text.includes("about")) {
+            targetPath = "/about";
+            pageName = "About Us";
+        } else if (text.includes("contact")) {
+            targetPath = "/contact";
+            pageName = "Contact Us";
+        } else if (text.includes("career") || text.includes("job")) {
+            targetPath = "/careers";
+            pageName = "Careers";
+        } else if (text.includes("privacy")) {
+            targetPath = "/privacy";
+            pageName = "Privacy Policy";
+        } else if (text.includes("term")) {
+            targetPath = "/terms";
+            pageName = "Terms of Service";
+        } else if (text.includes("cookie")) {
+            targetPath = "/cookies";
+            pageName = "Cookie Policy";
+        }
+
+        if (targetPath) {
+            if (parsed.currentPath === targetPath) {
+                return { response: `You are already on the **${pageName}** page!`, events: [] };
+            }
+            const navTool = getTool('navigate_to');
+            await navTool.execute({ path: targetPath });
+            return { response: `Navigating you to **${pageName}**... 🚀`, events: [] };
+        } else {
+            return { response: "I'm not sure which page you want to go to. Try saying 'Go to my dashboard' or 'Open events'.", events: [] };
+        }
+    }
+
     _handleUnknown(text) {
         return {
             response: `I'm not quite sure what you mean by "${text}". I can help you find events, register for them, manage your schedule, get personalized recommendations, and even create events! Try saying "recommend some tech events" or "create a workshop tomorrow".`,
@@ -382,72 +528,106 @@ class WebMCPOrchestrator {
         };
     }
 
-    async _handleCreateEvent({ entities }) {
-        const createTool = getTool('create_event');
-        
-        // Ensure user is organizer/admin (create_event tool will throw if not, but we can pre-check or just let it fail)
-        const adminToken = localStorage.getItem('adminToken');
-        if (!adminToken) {
-            return {
-                response: "You need to be logged in as an Organizer to create events.",
-                events: []
-            };
-        }
+    async _handleCreateEvent({ entities, intent, rawText }) {
+        const title = entities.eventNameHint || entities.event_name_hint || '';
+        const category = entities.categories?.[0] || entities.inheritedCategory || '';
+        const date = entities.dateRef || entities.date_ref || '';
+        const time = entities.timeRef || entities.time_ref || '';
+        const venue = entities.locationRef || entities.location_ref || '';
+        const capacity = entities.numberRef || entities.number_ref || '';
 
-        const title = entities.eventNameHint;
-        const category = entities.categories[0];
-        const date = entities.date_ref;
-        const time = entities.time_ref;
-        const location = entities.location_ref;
-        const capacity = entities.number_ref;
-
-        // Check for missing required fields for the AI
-        const missing = [];
-        if (!title) missing.push("title");
-        if (!date) missing.push("date");
-        if (!time) missing.push("time");
-        
-        if (missing.length > 0) {
-            return {
-                response: `I'd love to help you create that event! I'm just missing the **${missing.join(', ')}**.\nCould you provide those details? (e.g. "Create a tech meetup called Code Jam on October 15 at 10:00")`,
-                events: []
-            };
-        }
-
-        // Construct event payload
-        const eventPayload = {
-            title,
-            description: `Auto-generated event: ${title}`,
-            category: category || "other",
-            date,
-            start_time: time,
-            end_time: time, // Default to same, user can edit later
-            location: location || "TBD",
-            capacity: capacity || 100,
-            participationType: "individual",
-            isPaid: false,
-            price: 0
+        // Start collecting data
+        this.activeTask = {
+            type: 'CREATE_EVENT',
+            data: { title, category, date, time, venue, capacity },
+            step: null
         };
 
-        try {
-            const result = await createTool.execute(eventPayload);
-            if (result.success) {
-                return {
-                    response: `🎉 **Success!** I've created the event **${title}** on ${date} at ${time}.\nLocation: ${eventPayload.location}\nCapacity: ${eventPayload.capacity}\n\nIt is now live and students can start registering!`,
-                    events: [result.event]
-                };
-            } else {
-                return {
-                    response: `I tried to create the event, but encountered an error: ${result.message}`,
-                    events: []
-                };
+        return await this._progressCreateEventTask();
+    }
+
+    async _handleActiveTask(parsed) {
+        if (this.activeTask.type === 'CREATE_EVENT') {
+            // Check if user wants to cancel
+            if (parsed.intent === 'CANCEL_REGISTRATION' || parsed.rawText.toLowerCase().includes('cancel') || parsed.rawText.toLowerCase().includes('stop')) {
+                this.activeTask = null;
+                return { response: "Event creation cancelled. What else can I help you with?", events: [] };
             }
-        } catch (error) {
-             return {
-                response: `Failed to create event: ${error.message}`,
+
+            // Merge new entities into the active task data
+            const e = parsed.entities;
+            const data = this.activeTask.data;
+            
+            if (this.activeTask.step === 'DATE_TIME') {
+                if (e.dateRef || e.date_ref) data.date = e.dateRef || e.date_ref;
+                if (e.timeRef || e.time_ref) data.time = e.timeRef || e.time_ref;
+            } else if (this.activeTask.step === 'VENUE') {
+                // For venue, NLP might not extract location perfectly, so we take the raw text if no locationRef
+                data.venue = e.locationRef || e.location_ref || parsed.rawText;
+            }
+
+            return await this._progressCreateEventTask();
+        }
+
+        // Fallback clear
+        this.activeTask = null;
+        return { response: "Task cancelled.", events: [] };
+    }
+
+    async _progressCreateEventTask() {
+        const data = this.activeTask.data;
+
+        // Prompt for missing fields sequentially
+        if (!data.date || !data.time) {
+            this.activeTask.step = 'DATE_TIME';
+            return {
+                response: `I'd love to set that up! What **date and time** will this take place?`,
                 events: []
             };
         }
+
+        if (!data.venue) {
+            this.activeTask.step = 'VENUE';
+            return {
+                response: `Got it! And where is the **venue** for this event?`,
+                events: []
+            };
+        }
+
+        // All fields collected! Auto-fill!
+        const description = data.title ? `Auto-generated event setup for: ${data.title}` : '';
+        
+        const navTool = getTool('navigate_to');
+        if (navTool) {
+            await navTool.execute({ path: '/host' });
+        }
+
+        const fillTool = getTool('fill_event_form');
+        if (fillTool) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await fillTool.execute({
+                title: data.title,
+                description,
+                category: data.category,
+                date: data.date,
+                time: data.time,
+                venue: data.venue,
+                capacity: data.capacity,
+            });
+            
+            this.activeTask = null; // Clear state
+            
+            return {
+                response: `🚀 I've opened the **Create Event** page and auto-filled the form with the details we discussed!\n\nPlease review, add any images or custom questions, and click **Publish Event** when you're ready!`,
+                events: []
+            };
+        }
+
+        this.activeTask = null;
+        return {
+            response: `I tried to help you set up the event, but the auto-fill tool is currently unavailable.`,
+            events: []
+        };
     }
 }
 

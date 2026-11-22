@@ -137,6 +137,16 @@ INTENT_PATTERNS: Dict[str, Dict] = {
         "keywords": ["help", "how do I", "what can you do", "commands"],
         "weight": 0.8,
     },
+    "HOSTED_EVENTS": {
+        "patterns": [
+            r"\bmy (hosted|created|organized) events?\b",
+            r"\b(events? i (host|hosted|created|organized))\b",
+            r"\b(last|previous) host(ed)? event\b",
+            r"\bshows? previous host event\b",
+        ],
+        "keywords": ["hosted events", "my hosted event", "events i host", "events i created", "last host event", "previous host event"],
+        "weight": 1.2,
+    },
 }
 
 CATEGORY_VOCAB: Dict[str, List[str]] = {
@@ -158,7 +168,8 @@ DATE_RESOLVERS = [
     (re.compile(r"\bnext week\b", re.I), lambda: "NEXT_WEEK"),
     (re.compile(r"\bthis weekend\b", re.I), lambda: "THIS_WEEKEND"),
     (re.compile(r"\bthis month\b", re.I), lambda: "THIS_MONTH"),
-    (re.compile(r"\bnext (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", re.I), lambda m: _resolve_next_weekday(m.group(1))),
+    # General fallback for "next X" (e.g., next friday)
+    (re.compile(r"\bnext\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", re.I), lambda m: _resolve_next_weekday(m.group(1))),
     (re.compile(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", re.I), lambda m: _resolve_next_weekday(m.group(1))),
 ]
 
@@ -178,6 +189,7 @@ class AnalyzeRequest(BaseModel):
     message: str
     conversation_history: Optional[List[Dict]] = []
     user_interests: Optional[List[str]] = []
+    current_path: Optional[str] = None
 
 class RankRequest(BaseModel):
     query: str
@@ -296,33 +308,85 @@ class NLPCore:
 
 class IntentClassifier:
     def classify(self, text: str) -> Dict[str, Any]:
-        scores: Dict[str, float] = {}
+        # Split text by common conjunctions for multi-intent parsing
+        # "find events and register me" -> ["find events", "register me"]
+        clauses = re.split(r'\b(and|then|also)\b', text, flags=re.IGNORECASE)
+        # Filter out the conjunctions themselves
+        clauses = [c.strip() for c in clauses if c.strip().lower() not in ["and", "then", "also"] and c.strip()]
+        
+        if not clauses:
+            clauses = [text]
 
-        for intent, spec in INTENT_PATTERNS.items():
-            score = 0.0
-            # Regex patterns
-            for pat in spec["patterns"]:
-                if re.search(pat, text, re.IGNORECASE):
-                    score += 2.0 * spec["weight"]
-            # Keyword matching
-            lower = text.lower()
-            for kw in spec["keywords"]:
-                if kw.lower() in lower:
-                    score += 1.0 * spec["weight"]
-            if score > 0:
-                scores[intent] = score
+        intents_found = []
+        all_scores = {}
+        
+        for clause in clauses:
+            scores: Dict[str, float] = {}
 
-        if not scores:
-            return {"intent": "UNKNOWN", "confidence": 0.0, "all_scores": {}}
+            # 1. Regex and Keyword Matching
+            for intent, spec in INTENT_PATTERNS.items():
+                score = 0.0
+                for pat in spec["patterns"]:
+                    if re.search(pat, clause, re.IGNORECASE):
+                        score += 2.0 * spec["weight"]
+                lower = clause.lower()
+                for kw in spec["keywords"]:
+                    if kw.lower() in lower:
+                        score += 1.0 * spec["weight"]
+                if score > 0:
+                    scores[intent] = score
 
-        sorted_scores = sorted(scores.items(), key=lambda x: -x[1])
-        top_intent, top_score = sorted_scores[0]
-        confidence = round(min(top_score / 10.0, 1.0), 3)
+            # 2. Semantic Similarity using SentenceTransformer (Fuzzy Intent Matching)
+            global embedding_model
+            if embedding_model is not None and clause.strip():
+                text_emb = embedding_model.encode([clause])[0]
+                
+                for intent, spec in INTENT_PATTERNS.items():
+                    if not spec["keywords"]:
+                        continue
+                    # Encode all keywords for this intent
+                    kw_embs = embedding_model.encode(spec["keywords"])
+                    # Calculate similarities
+                    similarities = []
+                    for kw_emb in kw_embs:
+                        # Cosine similarity
+                        dot = sum(text_emb * kw_emb)
+                        mag_a = math.sqrt(sum(v**2 for v in text_emb))
+                        mag_b = math.sqrt(sum(v**2 for v in kw_emb))
+                        sim = dot / (mag_a * mag_b) if mag_a > 0 and mag_b > 0 else 0
+                        similarities.append(sim)
+                    
+                    # Boost score if a keyword is semantically very similar (> 0.55)
+                    max_sim = max(similarities) if similarities else 0.0
+                    if max_sim > 0.55:
+                        boost = (max_sim - 0.5) * 5.0 * spec["weight"] # Scale up the boost
+                        scores[intent] = scores.get(intent, 0.0) + boost
+
+            if not scores:
+                continue
+
+            sorted_scores = sorted(scores.items(), key=lambda x: -x[1])
+            top_intent, top_score = sorted_scores[0]
+            
+            # Record the highest score for this intent across all clauses
+            for k, v in scores.items():
+                all_scores[k] = max(all_scores.get(k, 0.0), v)
+                
+            if top_score > 0 and top_intent not in intents_found:
+                intents_found.append(top_intent)
+
+        if not intents_found:
+            return {"intent": "UNKNOWN", "intents": ["UNKNOWN"], "confidence": 0.0, "all_scores": {}}
+
+        # Calculate overall confidence based on the highest score found
+        top_overall_score = max(all_scores.values()) if all_scores else 0
+        confidence = round(min(top_overall_score / 10.0, 1.0), 3)
 
         return {
-            "intent": top_intent,
+            "intent": intents_found[0],  # Primary intent for legacy support
+            "intents": intents_found,    # New: List of all detected intents
             "confidence": confidence,
-            "all_scores": {k: round(v, 3) for k, v in sorted_scores},
+            "all_scores": {k: round(v, 3) for k, v in all_scores.items()},
         }
 
 
@@ -358,14 +422,52 @@ class EntityExtractor:
                     entities["date_ref"] = resolver()
                 break
 
-        # Time (HH:MM or "10am", "5 pm", "14:30")
-        time_match = re.search(r"\b(\d{1,2}):?(\d{2})?\s*(am|pm)?\b", text, re.I)
+        # Event Name Extraction (Advanced NLP)
+        # 1. Quoted text (e.g. "Hackathon 2026")
+        quote_match = re.search(r'["\'](.*?)["\']', text)
+        if quote_match:
+            entities["event_name_hint"] = quote_match.group(1).strip()
+        else:
+            # 2. Title Cased phrases (e.g. AI Bootcamp)
+            # Find sequences of words starting with capital letters
+            title_case_matches = re.findall(r'\b[A-Z][a-z0-9]*(?:\s+[A-Z][a-z0-9]*)*\b', text)
+            if title_case_matches:
+                # Filter out single words that are common sentence starters if there are multiple matches
+                valid_names = [m for m in title_case_matches if m.lower() not in NLPCore.STOPWORDS]
+                if valid_names:
+                    # Pick the longest title cased match as the event name
+                    entities["event_name_hint"] = max(valid_names, key=len).strip()
+
+        # Explicit date fallback for "DD Month" (e.g. "14 september" or typos like "14 setempber")
+        if not entities["date_ref"]:
+            explicit_date = re.search(r"\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,10})\b", lower)
+            if explicit_date:
+                day_str, month_str = explicit_date.groups()
+                months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+                month_idx = -1
+                for i, m in enumerate(months):
+                    if month_str.startswith(m) or m in month_str:
+                        month_idx = i + 1
+                        break
+                if month_idx > 0:
+                    try:
+                        yr = datetime.now().year
+                        # if date is in the past, assume next year
+                        d = datetime(yr, month_idx, int(day_str)).date()
+                        if d < datetime.now().date():
+                            d = datetime(yr + 1, month_idx, int(day_str)).date()
+                        entities["date_ref"] = d.isoformat()
+                    except ValueError:
+                        pass
+
+        # Time (HH:MM or "10am", "5 pm", "14:30", "9:30 mornig")
+        time_match = re.search(r"\b(\d{1,2}):?(\d{2})?\s*(am|pm|morn|eve|night)?\b", lower)
         if time_match:
             hr, min_part, ampm = time_match.groups()
             hr_int = int(hr)
             if ampm:
-                if ampm.lower() == 'pm' and hr_int < 12: hr_int += 12
-                if ampm.lower() == 'am' and hr_int == 12: hr_int = 0
+                if (ampm == 'pm' or 'eve' in ampm or 'night' in ampm) and hr_int < 12: hr_int += 12
+                if ampm == 'am' and hr_int == 12: hr_int = 0
             min_part = min_part if min_part else "00"
             entities["time_ref"] = f"{hr_int:02d}:{min_part}"
 
@@ -459,18 +561,18 @@ def analyze(req: AnalyzeRequest):
 
     return {
         "intent": intent_result["intent"],
+        "intents": intent_result.get("intents", [intent_result["intent"]]),
         "confidence": intent_result["confidence"],
         "all_intent_scores": intent_result["all_scores"],
         "entities": entity_result,
-        "sentiment": sentiment_result,
         "context": {
-            "inherited_category": inherited_category,
             "last_mentioned_event": last_mentioned_event,
-            "has_pronoun_reference": has_pronoun,
-            "session_interests": req.user_interests,
+            "inherited_category": inherited_category,
         },
-        "needs_clarification": intent_result["confidence"] < 0.35,
-        "processing_ms": elapsed,
+        "sentiment": sentiment_result,
+        "needs_clarification": intent_result["confidence"] < 0.4,
+        "current_path": req.current_path,
+        "processing_ms": round((time.perf_counter() - start) * 1000, 2),
     }
 
 

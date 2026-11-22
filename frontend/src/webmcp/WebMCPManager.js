@@ -10,7 +10,7 @@ class WebMCPManager {
 
     setupModelContext() {
         if (typeof window !== 'undefined') {
-            window.document.modelContext = window.document.modelContext || {
+            window.document.modelContext = {
                 registerTool: (tool) => this.registerTool(tool),
                 getTools: () => Array.from(this.tools.values())
             };
@@ -432,6 +432,55 @@ class WebMCPManager {
                     failed: event_ids.length - successCount,
                     results,
                 };
+            }
+        });
+
+        // 16. get_hosted_events
+        this.registerTool({
+            name: "get_hosted_events",
+            description: "Get the events that the current user is hosting or organizing.",
+            inputSchema: { type: "object", properties: {} },
+            execute: async () => {
+                const userString = localStorage.getItem('user');
+                if (!userString) throw new Error("User not authenticated.");
+                const user = JSON.parse(userString);
+                
+                const { data } = await api.get(`/events?organizerId=${user._id}`);
+                return data.events || data;
+            }
+        });
+
+        // 17. navigate_to
+        this.registerTool({
+            name: "navigate_to",
+            description: "Navigate the user to a specific page within the application.",
+            inputSchema: { type: "object", properties: { path: { type: "string" } } },
+            execute: async ({ path }) => {
+                // Dispatch a custom event that the React router can pick up
+                window.dispatchEvent(new CustomEvent('webmcp_navigate', { detail: { path } }));
+                return { success: true, path };
+            }
+        });
+
+        // 18. fill_event_form
+        this.registerTool({
+            name: "fill_event_form",
+            description: "Automatically fill out the create event form on behalf of the user.",
+            inputSchema: { 
+                type: "object", 
+                properties: { 
+                    title: { type: "string" },
+                    description: { type: "string" },
+                    date: { type: "string" },
+                    time: { type: "string" },
+                    category: { type: "string" },
+                    capacity: { type: "number" },
+                    venue: { type: "string" },
+                } 
+            },
+            execute: async (formData) => {
+                window.dispatchEvent(new CustomEvent('webmcp_fill_form', { detail: formData }));
+                return { success: true, message: "Form filled successfully." };
             }
         });
     }

@@ -50,6 +50,20 @@ export default function HostEvent() {
     customQuestions: []
   });
 
+  // WebMCP Auto-Fill Listener
+  React.useEffect(() => {
+    const handleFillForm = (e) => {
+      const data = e.detail;
+      setFormData(prev => ({
+        ...prev,
+        ...data,
+      }));
+      toast.success("Form fields auto-filled by CampusAI!");
+    };
+    window.addEventListener('webmcp_fill_form', handleFillForm);
+    return () => window.removeEventListener('webmcp_fill_form', handleFillForm);
+  }, []);
+
   // Verification Checks
   const isOrganizer = user?.capabilities?.organizer;
   const verifyStatus = user?.organizerProfile?.verificationStatus;
