@@ -35,59 +35,61 @@ const userSchema = new mongoose.Schema({
     
     // Identity Verification (Live Photo & ID Card)
     identityVerification: {
-        livePhoto: { type: String },
-        idCardPhoto: { type: String },
-        status: { 
-            type: String, 
-            enum: ['none', 'pending', 'verified', 'rejected'],
-            default: 'none'
-        },
-        extractedText: { type: String },
-        extractedData: {
-            name: { type: String },
-            idNumber: { type: String },
-            mobile: { type: String },
-            university: { type: String }
-        },
-        confidence: { type: Number },
-        verifiedAt: { type: Date }
+        type: Object,
+        default: () => ({
+            livePhoto: '',
+            idCardPhoto: '',
+            status: 'none',
+            extractedText: '',
+            extractedData: {},
+            confidence: 0,
+            verifiedAt: null
+        })
     },
     
     // Capabilities (replaces legacy static roles)
     capabilities: {
-        participant: { type: Boolean, default: true },
-        organizer: { type: Boolean, default: false },
-        volunteer: { type: Boolean, default: false }
+        type: Object,
+        default: () => ({
+            participant: true,
+            organizer: false,
+            volunteer: false
+        })
     },
 
     // Basic Profile
     profile: {
-        photo: { type: String },
-        college: { type: String },
-        department: { type: String },
-        course: { type: String },
-        year: { type: String },
-        studentId: { type: String }
+        type: Object,
+        default: () => ({
+            photo: '',
+            college: '',
+            department: '',
+            course: '',
+            year: '',
+            studentId: ''
+        })
     },
 
     // Organizer Profile
     organizerProfile: {
-        organizationName: { type: String },
-        organizationType: { type: String },
-        designation: { type: String },
-        description: { type: String },
-        logo: { type: String },
-        verificationStatus: { 
-            type: String, 
-            enum: ['none', 'pending', 'verified', 'rejected'],
-            default: 'none'
-        }
+        type: Object,
+        default: () => ({
+            organizationName: '',
+            organizationType: '',
+            designation: '',
+            description: '',
+            logo: '',
+            verificationStatus: 'none'
+        })
     },
 
     // Manual Payment Integration
     paymentConfig: {
-        qrCode: { type: String }, // URL to uploaded QR code image
-        upiId: { type: String }
+        type: Object,
+        default: () => ({
+            qrCode: '',
+            upiId: ''
+        })
     }
 }, { timestamps: true });
 

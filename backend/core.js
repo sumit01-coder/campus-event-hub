@@ -66,13 +66,21 @@ app.use((req, res, next) => {
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Basic Route & Health Check with Rate Limiting
-app.get('/', globalLimiter, (req, res) => {
-    res.send('Campus EventHub API is running...');
+// Dedicated Health Check Rate Limiter
+const healthLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 60, // limit each IP to 60 health check requests per minute
+    message: { status: 'error', message: 'Too many health check requests' }
 });
 
-app.get('/health', globalLimiter, (req, res) => {
-    res.json({ status: 'ok', uptime: process.uptime() });
+app.use('/health', healthLimiter);
+app.get('/health', healthLimiter, (req, res) => {
+    res.json({ status: 'ok', uptime: Math.floor(process.uptime()), timestamp: Date.now() });
+});
+
+// Root Ping Route
+app.get('/', globalLimiter, (req, res) => {
+    res.send('Campus EventHub API is running...');
 });
 
 // Routes

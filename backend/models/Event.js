@@ -46,12 +46,10 @@ const eventSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    coordinators: [{
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        name: { type: String, required: true },
-        email: { type: String, required: true },
-        role: { type: String, default: 'volunteer' }
-    }],
+    coordinators: {
+        type: Array,
+        default: []
+    },
     registrationDeadline: {
         type: Date,
         required: false
@@ -69,47 +67,38 @@ const eventSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    announcements: [{
-        message: { type: String, required: true },
-        date: { type: Date, default: Date.now },
-        isHidden: { type: Boolean, default: false }
-    }],
-    ratings: [{
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        rating: { type: Number, required: true, min: 1, max: 5 },
-        review: { type: String },
-        date: { type: Date, default: Date.now }
-    }],
+    announcements: {
+        type: Array,
+        default: []
+    },
+    ratings: {
+        type: Array,
+        default: []
+    },
     isHackathon: {
         type: Boolean,
         default: false
     },
-    problemStatements: [{
-        title: { type: String, required: true },
-        description: { type: String, required: true },
-        maxTeams: { type: Number, default: 0 } // 0 = unlimited
-    }],
+    problemStatements: {
+        type: Array,
+        default: []
+    },
     maxPreferences: {
         type: Number,
         default: 3
     },
     results: {
-        isReleased: { type: Boolean, default: false },
-        winners: [{
-            position: { type: String, required: true }, // e.g., "1st Place", "Runner Up", "Best UI"
-            registrationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Registration' }
-        }]
+        type: Object,
+        default: () => ({ isReleased: false, winners: [] })
     },
     likes: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
-    customQuestions: [{
-        questionText: { type: String, required: true },
-        questionType: { type: String, enum: ['text', 'select', 'checkbox'], default: 'text' },
-        options: [{ type: String }],
-        isRequired: { type: Boolean, default: false }
-    }]
+    customQuestions: {
+        type: Array,
+        default: []
+    }
 }, { timestamps: true });
 
 // Virtual to populate registrations related to this event
