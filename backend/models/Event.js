@@ -1,5 +1,48 @@
 const mongoose = require('mongoose');
 
+const coordinatorSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    role: { type: String, default: 'volunteer' }
+}, { _id: false });
+
+const announcementSchema = new mongoose.Schema({
+    message: { type: String, required: true },
+    date: { type: Date, default: Date.now },
+    isHidden: { type: Boolean, default: false }
+}, { _id: false });
+
+const ratingSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    review: { type: String },
+    date: { type: Date, default: Date.now }
+}, { _id: false });
+
+const problemStatementSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    maxTeams: { type: Number, default: 0 } // 0 = unlimited
+});
+
+const winnerSchema = new mongoose.Schema({
+    position: { type: String, required: true }, // e.g., "1st Place", "Runner Up", "Best UI"
+    registrationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Registration' }
+}, { _id: false });
+
+const resultsSchema = new mongoose.Schema({
+    isReleased: { type: Boolean, default: false },
+    winners: [winnerSchema]
+}, { _id: false });
+
+const customQuestionSchema = new mongoose.Schema({
+    questionText: { type: String, required: true },
+    questionType: { type: String, enum: ['text', 'select', 'checkbox'], default: 'text' },
+    options: [{ type: String }],
+    isRequired: { type: Boolean, default: false }
+});
+
 const eventSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -46,12 +89,7 @@ const eventSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    coordinators: [{
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        name: { type: String, required: true },
-        email: { type: String, required: true },
-        role: { type: String, default: 'volunteer' }
-    }],
+    coordinators: [coordinatorSchema],
     registrationDeadline: {
         type: Date,
         required: false
@@ -69,65 +107,36 @@ const eventSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    announcements: [{
-        message: { type: String, required: true },
-        date: { type: Date, default: Date.now },
-        isHidden: { type: Boolean, default: false }
-    }],
-    ratings: [{
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        rating: { type: Number, required: true, min: 1, max: 5 },
-        review: { type: String },
-        date: { type: Date, default: Date.now }
-    }],
+    announcements: [announcementSchema],
+    ratings: [ratingSchema],
     isHackathon: {
         type: Boolean,
         default: false
     },
-    problemStatements: [{
-        title: { type: String, required: true },
-        description: { type: String, required: true },
-        maxTeams: { type: Number, default: 0 } // 0 = unlimited
-    }],
+    problemStatements: [problemStatementSchema],
     maxPreferences: {
         type: Number,
         default: 3
     },
     results: {
-        isReleased: { type: Boolean, default: false },
-        winners: [{
-            position: { type: String, required: true }, // e.g., "1st Place", "Runner Up", "Best UI"
-            registrationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Registration' }
-        }]
+        type: resultsSchema,
+        default: () => ({ isReleased: false, winners: [] })
     },
     likes: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
-    // New Features for Phase 6
-    maxCapacity: {
-        type: Number,
-        default: 0 // 0 means unlimited
-    },
-    customQuestions: [{
-        question: { type: String, required: true },
-        type: { type: String, enum: ['text', 'dropdown', 'checkbox'], default: 'text' },
-        options: [{ type: String }], // Used if type is dropdown or checkbox
-        required: { type: Boolean, default: false }
-    }],
-    ticketTiers: [{
-        name: { type: String, required: true }, // e.g., 'Early Bird', 'VIP'
-        price: { type: Number, required: true },
-        capacity: { type: Number, default: 0 } // 0 means unlimited
-    }],
-    pageViews: {
-        type: Number,
-        default: 0
-    }
+    customQuestions: [customQuestionSchema]
 }, { timestamps: true });
 
-// Indexes for performance
-eventSchema.index({ organizerId: 1 });
-eventSchema.index({ category: 1 });
+// Virtual to populate registrations related to this event
+eventSchema.virtual('registrations', {
+    ref: 'Registration',
+    localField: '_id',
+    foreignField: 'eventId'
+});
+
+eventSchema.set('toObject', { virtuals: true });
+eventSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('Event', eventSchema);

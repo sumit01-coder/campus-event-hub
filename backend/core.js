@@ -66,9 +66,13 @@ app.use((req, res, next) => {
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Basic Route
-app.get('/', (req, res) => {
+// Basic Route & Health Check with Rate Limiting
+app.get('/', globalLimiter, (req, res) => {
     res.send('Campus EventHub API is running...');
+});
+
+app.get('/health', globalLimiter, (req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
 });
 
 // Routes
