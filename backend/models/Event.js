@@ -1,48 +1,5 @@
 const mongoose = require('mongoose');
 
-const coordinatorSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    role: { type: String, default: 'volunteer' }
-}, { _id: false });
-
-const announcementSchema = new mongoose.Schema({
-    message: { type: String, required: true },
-    date: { type: Date, default: Date.now },
-    isHidden: { type: Boolean, default: false }
-}, { _id: false });
-
-const ratingSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    rating: { type: Number, required: true, min: 1, max: 5 },
-    review: { type: String },
-    date: { type: Date, default: Date.now }
-}, { _id: false });
-
-const problemStatementSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    description: { type: String, required: true },
-    maxTeams: { type: Number, default: 0 } // 0 = unlimited
-});
-
-const winnerSchema = new mongoose.Schema({
-    position: { type: String, required: true }, // e.g., "1st Place", "Runner Up", "Best UI"
-    registrationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Registration' }
-}, { _id: false });
-
-const resultsSchema = new mongoose.Schema({
-    isReleased: { type: Boolean, default: false },
-    winners: [winnerSchema]
-}, { _id: false });
-
-const customQuestionSchema = new mongoose.Schema({
-    questionText: { type: String, required: true },
-    questionType: { type: String, enum: ['text', 'select', 'checkbox'], default: 'text' },
-    options: [{ type: String }],
-    isRequired: { type: Boolean, default: false }
-});
-
 const eventSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -89,7 +46,12 @@ const eventSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    coordinators: [coordinatorSchema],
+    coordinators: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        name: { type: String, required: true },
+        email: { type: String, required: true },
+        role: { type: String, default: 'volunteer' }
+    }],
     registrationDeadline: {
         type: Date,
         required: false
@@ -107,26 +69,47 @@ const eventSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    announcements: [announcementSchema],
-    ratings: [ratingSchema],
+    announcements: [{
+        message: { type: String, required: true },
+        date: { type: Date, default: Date.now },
+        isHidden: { type: Boolean, default: false }
+    }],
+    ratings: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        rating: { type: Number, required: true, min: 1, max: 5 },
+        review: { type: String },
+        date: { type: Date, default: Date.now }
+    }],
     isHackathon: {
         type: Boolean,
         default: false
     },
-    problemStatements: [problemStatementSchema],
+    problemStatements: [{
+        title: { type: String, required: true },
+        description: { type: String, required: true },
+        maxTeams: { type: Number, default: 0 } // 0 = unlimited
+    }],
     maxPreferences: {
         type: Number,
         default: 3
     },
     results: {
-        type: resultsSchema,
-        default: () => ({ isReleased: false, winners: [] })
+        isReleased: { type: Boolean, default: false },
+        winners: [{
+            position: { type: String, required: true }, // e.g., "1st Place", "Runner Up", "Best UI"
+            registrationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Registration' }
+        }]
     },
     likes: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
-    customQuestions: [customQuestionSchema]
+    customQuestions: [{
+        questionText: { type: String, required: true },
+        questionType: { type: String, enum: ['text', 'select', 'checkbox'], default: 'text' },
+        options: [{ type: String }],
+        isRequired: { type: Boolean, default: false }
+    }]
 }, { timestamps: true });
 
 // Virtual to populate registrations related to this event

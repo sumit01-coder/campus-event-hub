@@ -28,7 +28,7 @@ router.get('/architecture', (req, res) => {
     ];
 
     const routes = [
-            { id: "r1", method: "GET", path: "/api/public/stats", middlewares: ["limit"], tables: ["events"], status: "warning", desc: "Aggregated public platform metrics" },
+            { id: "r1", method: "GET", path: "/api/public/stats", middlewares: ["limit"], tables: [], status: "guarded", desc: "Aggregated public platform metrics (in-memory)" },
             { id: "r2", method: "GET", path: "/api/events/", middlewares: ["optionalAuth", "limit"], tables: ["events"], status: "warning", desc: "Public discovery with safe organizer projection" },
             { id: "r3", method: "GET", path: "/api/events/:id", middlewares: ["optionalAuth", "limit"], tables: ["events"], status: "warning", desc: "Event details with sanitized organizer info" },
             { id: "r4", method: "GET", path: "/api/events/:id/availability", middlewares: ["optionalAuth", "limit"], tables: ["events"], status: "warning", desc: "In-memory seat calculation from event capacity" },

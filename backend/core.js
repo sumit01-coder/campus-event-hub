@@ -104,7 +104,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/registrations', registrationRoutes);
-app.use('/api/public', publicRoutes);
+app.use('/api/public', globalLimiter, publicRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/queries', queryRoutes);

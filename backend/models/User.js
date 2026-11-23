@@ -1,57 +1,5 @@
 const mongoose = require('mongoose');
 
-const identityVerificationSchema = new mongoose.Schema({
-    livePhoto: { type: String },
-    idCardPhoto: { type: String },
-    status: { 
-        type: String, 
-        enum: ['none', 'pending', 'verified', 'rejected'],
-        default: 'none'
-    },
-    extractedText: { type: String },
-    extractedData: {
-        name: { type: String },
-        idNumber: { type: String },
-        mobile: { type: String },
-        university: { type: String }
-    },
-    confidence: { type: Number },
-    verifiedAt: { type: Date }
-}, { _id: false });
-
-const capabilitiesSchema = new mongoose.Schema({
-    participant: { type: Boolean, default: true },
-    organizer: { type: Boolean, default: false },
-    volunteer: { type: Boolean, default: false }
-}, { _id: false });
-
-const profileSchema = new mongoose.Schema({
-    photo: { type: String },
-    college: { type: String },
-    department: { type: String },
-    course: { type: String },
-    year: { type: String },
-    studentId: { type: String }
-}, { _id: false });
-
-const organizerProfileSchema = new mongoose.Schema({
-    organizationName: { type: String },
-    organizationType: { type: String },
-    designation: { type: String },
-    description: { type: String },
-    logo: { type: String },
-    verificationStatus: { 
-        type: String, 
-        enum: ['none', 'pending', 'verified', 'rejected'],
-        default: 'none'
-    }
-}, { _id: false });
-
-const paymentConfigSchema = new mongoose.Schema({
-    qrCode: { type: String }, // URL to uploaded QR code image
-    upiId: { type: String }
-}, { _id: false });
-
 const userSchema = new mongoose.Schema({
     // Core Account Info
     name: {
@@ -87,32 +35,59 @@ const userSchema = new mongoose.Schema({
     
     // Identity Verification (Live Photo & ID Card)
     identityVerification: {
-        type: identityVerificationSchema,
-        default: () => ({})
+        livePhoto: { type: String },
+        idCardPhoto: { type: String },
+        status: { 
+            type: String, 
+            enum: ['none', 'pending', 'verified', 'rejected'],
+            default: 'none'
+        },
+        extractedText: { type: String },
+        extractedData: {
+            name: { type: String },
+            idNumber: { type: String },
+            mobile: { type: String },
+            university: { type: String }
+        },
+        confidence: { type: Number },
+        verifiedAt: { type: Date }
     },
     
     // Capabilities (replaces legacy static roles)
     capabilities: {
-        type: capabilitiesSchema,
-        default: () => ({ participant: true, organizer: false, volunteer: false })
+        participant: { type: Boolean, default: true },
+        organizer: { type: Boolean, default: false },
+        volunteer: { type: Boolean, default: false }
     },
 
     // Basic Profile
     profile: {
-        type: profileSchema,
-        default: () => ({})
+        photo: { type: String },
+        college: { type: String },
+        department: { type: String },
+        course: { type: String },
+        year: { type: String },
+        studentId: { type: String }
     },
 
     // Organizer Profile
     organizerProfile: {
-        type: organizerProfileSchema,
-        default: () => ({})
+        organizationName: { type: String },
+        organizationType: { type: String },
+        designation: { type: String },
+        description: { type: String },
+        logo: { type: String },
+        verificationStatus: { 
+            type: String, 
+            enum: ['none', 'pending', 'verified', 'rejected'],
+            default: 'none'
+        }
     },
 
     // Manual Payment Integration
     paymentConfig: {
-        type: paymentConfigSchema,
-        default: () => ({})
+        qrCode: { type: String }, // URL to uploaded QR code image
+        upiId: { type: String }
     }
 }, { timestamps: true });
 

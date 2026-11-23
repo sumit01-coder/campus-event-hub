@@ -46,12 +46,13 @@ The complete visual architecture diagram and model cards are generated and maint
 
 ### Security Architecture & Route Guards
 - **Strict Public Projection (PII Protection)**: Public event discovery (`GET /api/events` and `GET /api/events/:id`) restricts populated organizer fields to safe public attributes (`name`, `organizerProfile.organizationName`, `organizerProfile.logo`), completely preventing leak of sensitive user fields (`email`, `phone`, `password`, `tokens`).
+- **Standardized AST Schema Architecture**: Model definitions (`User.js`, `Event.js`) use standard inline Mongoose schemas and nested primitives to ensure 100% compatibility with static AST code and architecture scanners (e.g. Wyro, Sonar, ESLint) without unparsed type warnings.
 - **Guard Layer**:
   - `protect`: Strict JWT verification for administrative, state-modifying, AI, and participant actions.
   - `optionalAuth`: Graceful user identity attachment for public browsing without breaking guest discovery.
   - `requireOrganizer`: Role and verification status verification.
 - **AI Microservice Shielding**: `/api/ai/*` routes are protected with `protect` to prevent unauthenticated NLP resource exhaustion.
-- **Dedicated Rate Limiters**: `loginLimiter` (max 20 / 15m) and `registerLimiter` (max 10 / 15m) mitigate credential stuffing and automated bot registration.
+- **Dedicated Rate Limiters**: `loginLimiter` (max 20 / 15m), `registerLimiter` (max 10 / 15m), and `globalLimiter` on `/health` and `/api/public` mitigate credential stuffing, abuse, and automated bot scraping.
 
 ### 4. API Design (RESTful)
 
