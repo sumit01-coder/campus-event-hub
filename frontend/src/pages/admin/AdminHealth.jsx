@@ -8,6 +8,7 @@ export default function AdminHealth() {
   const [healthData, setHealthData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState('telemetry'); // 'telemetry' | 'architecture'
 
   const fetchHealth = async () => {
     try {
@@ -42,21 +43,46 @@ export default function AdminHealth() {
       <main className="flex-1 p-8 overflow-y-auto animate-fade-in-up">
         <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[24px] shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-gray-100/50">
           <div>
-            <h1 className="text-3xl font-black text-gray-900 mb-1 tracking-tight">System Health</h1>
-            <p className="text-gray-500 font-medium text-sm">Monitor server metrics, database performance, and API status</p>
+            <h1 className="text-3xl font-black text-gray-900 mb-1 tracking-tight">System Health & Architecture</h1>
+            <p className="text-gray-500 font-medium text-sm">Monitor server metrics, database performance, and route-to-table security maps</p>
           </div>
           
-          <button 
-            onClick={fetchHealth}
-            disabled={isRefreshing}
-            className="px-5 py-2.5 bg-indigo-50 text-indigo-700 font-bold text-sm rounded-xl hover:bg-indigo-100 transition-colors flex items-center gap-2 border border-indigo-200 shadow-sm disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex p-1 bg-gray-100 rounded-xl text-xs font-bold">
+              <button
+                onClick={() => setViewMode('telemetry')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === 'telemetry' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Telemetry
+              </button>
+              <button
+                onClick={() => setViewMode('architecture')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === 'architecture' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Route Map
+              </button>
+            </div>
+
+            <button 
+              onClick={fetchHealth}
+              disabled={isRefreshing}
+              className="px-4 py-2 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-xl hover:bg-indigo-100 transition-colors flex items-center gap-1.5 border border-indigo-200 shadow-sm disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          </div>
         </header>
 
-        {isLoading ? (
+        {viewMode === 'architecture' ? (
+          <div className="bg-white rounded-[32px] p-6 border border-gray-100/50 shadow-[0_4px_24px_rgba(0,0,0,0.02)] overflow-hidden">
+            <iframe
+              src="/route-table-map.html"
+              title="Route Table Architecture Map"
+              className="w-full h-[650px] rounded-2xl border-0"
+            />
+          </div>
+        ) : isLoading ? (
           <div className="flex justify-center items-center h-64 bg-white rounded-[32px] border border-gray-100/50 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
             <Loader2 className="animate-spin text-indigo-500" size={40} />
           </div>

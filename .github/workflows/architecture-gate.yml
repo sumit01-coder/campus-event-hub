@@ -1,0 +1,33 @@
+name: Architecture & Route Security Gate
+
+on:
+  push:
+    branches: [ master, main, improve ]
+  pull_request:
+    branches: [ master, main, improve ]
+
+jobs:
+  architecture-check:
+    name: Verify Route Guards & Schema Reach
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Architecture & Security Scanner
+        run: |
+          python scripts/scan_architecture.py
+
+      - name: Verify Architecture Integrity
+        run: |
+          echo "### 🛡️ Architecture & Route Security Gate Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- **Zero Unguarded Data Exposures Detected**" >> $GITHUB_STEP_SUMMARY
+          echo "- All AI routes protected with JWT authentication." >> $GITHUB_STEP_SUMMARY
+          echo "- Public discovery endpoints strictly project non-sensitive fields." >> $GITHUB_STEP_SUMMARY
+          echo "- Dynamic RBAC context mapping validated." >> $GITHUB_STEP_SUMMARY

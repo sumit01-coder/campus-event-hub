@@ -66,9 +66,23 @@ def scan_repository():
                     "status": status
                 })
 
-    return {"routes": routes, "models": list(models.keys())}
+    errors = []
+    for r in routes:
+        if r["path"].startswith("/api/ai/") and r["status"] != "guarded" and not r["path"].endswith("/health"):
+            errors.append(f"AI route {r['method']} {r['path']} missing auth guard!")
+        if r["path"].startswith("/api/admin/") and r["status"] != "guarded" and not r["path"].endswith("/login"):
+            errors.append(f"Admin route {r['method']} {r['path']} missing admin guard!")
+
+    return {"routes": routes, "models": list(models.keys()), "errors": errors}
 
 if __name__ == "__main__":
     result = scan_repository()
-    print(f"Scanned {len(result['routes'])} routes across {len(result['models'])} models.")
-    print("Architecture scanner ready for CI pipeline!")
+    print(f"✓ Scanned {len(result['routes'])} routes across {len(result['models'])} models.")
+    if result["errors"]:
+        print(f"❌ {len(result['errors'])} Architecture violations found:")
+        for err in result["errors"]:
+            print(f"  - {err}")
+        exit(1)
+    else:
+        print("✓ Architecture & security checks passed! 0 critical violations.")
+        print("✓ Repository ready for production deployment.")

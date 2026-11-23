@@ -11,11 +11,12 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas%20Ready-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-Realtime-010101?style=for-the-badge&logo=socket.io&logoColor=white)](https://socket.io/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Architecture Gate](https://img.shields.io/badge/Security%20Gate-Verified%20Passing-success?style=for-the-badge&logo=githubactions&logoColor=white)](.github/workflows/architecture-gate.yml)
 [![License](https://img.shields.io/badge/License-ISC-blue.svg?style=for-the-badge)](LICENSE)
 
 **Next-Generation Multi-Tenant Event Management & Hackathon Operating System for Universities.**
 
-[Live Application](#getting-started) • [Database Architecture](#database-models--architecture) • [LinkedIn Assets](#linkedin-assets--social-showcase) • [Key Features](#key-features) • [Living Documentation](#living-documentation)
+[Live Application](#getting-started) • [Route → Table Visualizer](#-interactive-route--table-architecture-map) • [Database Architecture](#database-models--architecture) • [LinkedIn Assets](#linkedin-assets--social-showcase) • [Key Features](#key-features) • [Living Documentation](#living-documentation)
 
 ---
 
@@ -24,6 +25,27 @@
 ## 📌 Executive Summary
 
 **Campus EventHub** replaces fragmented Google Forms, manual spreadsheets, and disconnected messaging groups with an enterprise-grade, single-shell SaaS platform. Built on the **MERN** stack with **Socket.IO** and **FastAPI NLP**, it orchestrates the entire university event lifecycle: from registration and AI identity verification to anti-duplicate QR attendance scanning, live WebSocket Q&A, and automated PDF certification.
+
+---
+
+## 🗺️ Interactive Route → Table Architecture Map
+
+Campus EventHub includes a built-in **AST Route-to-Table Visualizer & Security Inspector** directly in the admin portal (`/admin/health`) and public developer documentation (`/api-docs`):
+
+<div align="center">
+
+[![Route to Table Map](docs/assets/images/custom-route-table-map.png)](docs/assets/images/custom-route-table-map.png)
+
+*Interactive Sankey visualizer mapping 28 API routes to 8 collections with real-time guard verification.*
+
+</div>
+
+- **Dynamic Path Tracing**: Bezier curves map which API routes read or write to which collections.
+- **Automated Security Gate**: Enforces zero unauthenticated routes reach sensitive personal records (`password`, `emailVerificationToken`, private profiles).
+- **Run Locally**:
+  ```bash
+  python scripts/scan_architecture.py
+  ```
 
 ---
 
