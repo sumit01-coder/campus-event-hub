@@ -30,6 +30,24 @@ const protect = async (req, res, next) => {
     }
 };
 
+// Middleware to optionally attach user if token exists, without rejecting unauthenticated requests
+const optionalAuth = async (req, res, next) => {
+    let token;
+    if (
+        req.headers.authorization &&
+        req.headers.authorization.startsWith('Bearer')
+    ) {
+        try {
+            token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = await User.findById(decoded.id).select('-password');
+        } catch (error) {
+            req.user = null;
+        }
+    }
+    next();
+};
+
 // Middleware to restrict access to Organizers and Admins
 const requireOrganizer = (req, res, next) => {
     // If it's a super admin, allow them to bypass
@@ -49,4 +67,4 @@ const requireOrganizer = (req, res, next) => {
     }
 };
 
-module.exports = { protect, requireOrganizer };
+module.exports = { protect, optionalAuth, requireOrganizer };

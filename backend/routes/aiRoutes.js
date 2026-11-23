@@ -8,6 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const Event = require('../models/Event');
+const { protect } = require('../middleware/authMiddleware');
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8001';
 
@@ -41,7 +42,7 @@ router.get('/health', async (req, res) => {
 
 // ─── POST /api/ai/analyze  ─────────────────────────────────────────────────
 // Deep NLP analysis: intent + entities + sentiment + context
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', protect, async (req, res) => {
     try {
         const { message, conversation_history = [], user_interests = [] } = req.body;
         if (!message) return res.status(400).json({ message: 'message is required' });
@@ -69,7 +70,7 @@ router.post('/analyze', async (req, res) => {
 
 // ─── POST /api/ai/rank  ────────────────────────────────────────────────────
 // TF-IDF ranking of real DB events against a query
-router.post('/rank', async (req, res) => {
+router.post('/rank', protect, async (req, res) => {
     try {
         const { query, top_k = 10 } = req.body;
         if (!query) return res.status(400).json({ message: 'query is required' });
@@ -91,7 +92,7 @@ router.post('/rank', async (req, res) => {
 
 // ─── POST /api/ai/recommend  ───────────────────────────────────────────────
 // Content-based recommendations using user interests
-router.post('/recommend', async (req, res) => {
+router.post('/recommend', protect, async (req, res) => {
     try {
         const { user_interests = [], registered_categories = [], top_k = 5 } = req.body;
 
@@ -113,7 +114,7 @@ router.post('/recommend', async (req, res) => {
 
 // ─── GET /api/ai/insights  ─────────────────────────────────────────────────
 // Statistical insights from all event data
-router.get('/insights', async (req, res) => {
+router.get('/insights', protect, async (req, res) => {
     try {
         const events = await Event.find().lean();
 
@@ -126,7 +127,7 @@ router.get('/insights', async (req, res) => {
 });
 
 // ─── POST /api/ai/sentiment  ───────────────────────────────────────────────
-router.post('/sentiment', async (req, res) => {
+router.post('/sentiment', protect, async (req, res) => {
     try {
         const { text } = req.body;
         if (!text) return res.status(400).json({ message: 'text is required' });

@@ -25,7 +25,7 @@ const getEvents = async (req, res) => {
 
         const total = await Event.countDocuments(query);
         const events = await Event.find(query)
-            .populate('organizerId', 'name email')
+            .populate('organizerId', 'name organizerProfile.organizationName organizerProfile.logo')
             .sort({ createdAt: -1 })
             .skip(startIndex)
             .limit(limit);
@@ -88,16 +88,14 @@ const createEvent = async (req, res) => {
 // @access  Public
 const getEventById = async (req, res) => {
     try {
-        const event = await Event.findById(req.params.id).populate('organizerId', 'name email profile organizerProfile paymentConfig');
+        const event = await Event.findById(req.params.id)
+            .populate('organizerId', 'name organizerProfile.organizationName organizerProfile.logo organizerProfile.organizationType paymentConfig.upiId paymentConfig.qrCode');
         if (!event) {
             return res.status(404).json({ message: 'Event not found' });
         }
         
-        // Get the live registration count
-        const registrationsCount = await Registration.countDocuments({ 
-            eventId: event._id, 
-            status: { $ne: 'cancelled' } 
-        });
+        // Fast, isolated registration count from Event document
+        const registrationsCount = event.registeredCount || 0;
 
         res.json({ ...event.toObject(), registrationsCount });
     } catch (error) {
@@ -612,7 +610,7 @@ const toggleLikeEvent = async (req, res) => {
 
 // @desc    Get event availability
 // @route   GET /api/events/:id/availability
-// @access  Public
+// @access  Public / Optional Auth
 const getEventAvailability = async (req, res) => {
     try {
         const event = await Event.findById(req.params.id);
@@ -620,12 +618,8 @@ const getEventAvailability = async (req, res) => {
             return res.status(404).json({ message: 'Event not found' });
         }
         
-        const registeredCount = await Registration.countDocuments({ 
-            eventId: event._id, 
-            status: { $ne: 'cancelled' } 
-        });
-
-        const capacity = event.capacity;
+        const registeredCount = event.registeredCount || 0;
+        const capacity = event.capacity || 0;
         const available_seats = Math.max(0, capacity - registeredCount);
         
         let registration_open = true;
@@ -646,7 +640,7 @@ const getEventAvailability = async (req, res) => {
 
 // @desc    Recommend events based on preferences
 // @route   POST /api/events/recommend
-// @access  Public
+// @access  Private
 const recommendEvents = async (req, res) => {
     try {
         const { interest, date, category } = req.body;
@@ -663,25 +657,21 @@ const recommendEvents = async (req, res) => {
             ];
         }
 
-        // Just fetching matching events for now, could be enhanced with ML or more complex logic
         const events = await Event.find(query)
-            .populate('organizerId', 'name email')
+            .populate('organizerId', 'name organizerProfile.organizationName organizerProfile.logo')
             .sort({ date: 1 })
             .limit(5);
 
-        // Calculate availability for these events to enrich response
-        const enrichedEvents = await Promise.all(events.map(async (event) => {
-            const registeredCount = await Registration.countDocuments({ 
-                eventId: event._id, 
-                status: { $ne: 'cancelled' } 
-            });
+        // Fast in-memory calculation from Event schema
+        const enrichedEvents = events.map((event) => {
+            const registeredCount = event.registeredCount || 0;
             const available_seats = Math.max(0, event.capacity - registeredCount);
             return {
                 ...event.toObject(),
                 available_seats,
                 registration_open: available_seats > 0 && (!event.registrationDeadline || new Date() <= new Date(event.registrationDeadline))
             };
-        }));
+        });
 
         res.json(enrichedEvents);
     } catch (error) {

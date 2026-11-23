@@ -72,7 +72,13 @@ app.get('/', (req, res) => {
 });
 
 // Routes
+const registerLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // limit registration attempts to 10 per 15 minutes
+    message: { message: 'Too many registration attempts, please try again after 15 minutes' }
+});
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/register', registerLimiter);
 
 // Import Routes
 const authRoutes = require('./routes/authRoutes');

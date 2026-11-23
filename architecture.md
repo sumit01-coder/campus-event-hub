@@ -44,6 +44,15 @@ The complete visual architecture diagram and model cards are generated and maint
 - LinkedIn Showcase Banner: `docs/assets/images/campus-eventhub-linkedin-showcase.png`
 - GitHub README Banner: `docs/assets/images/campus-eventhub-github-banner.png`
 
+### Security Architecture & Route Guards
+- **Strict Public Projection (PII Protection)**: Public event discovery (`GET /api/events` and `GET /api/events/:id`) restricts populated organizer fields to safe public attributes (`name`, `organizerProfile.organizationName`, `organizerProfile.logo`), completely preventing leak of sensitive user fields (`email`, `phone`, `password`, `tokens`).
+- **Guard Layer**:
+  - `protect`: Strict JWT verification for administrative, state-modifying, AI, and participant actions.
+  - `optionalAuth`: Graceful user identity attachment for public browsing without breaking guest discovery.
+  - `requireOrganizer`: Role and verification status verification.
+- **AI Microservice Shielding**: `/api/ai/*` routes are protected with `protect` to prevent unauthenticated NLP resource exhaustion.
+- **Dedicated Rate Limiters**: `loginLimiter` (max 20 / 15m) and `registerLimiter` (max 10 / 15m) mitigate credential stuffing and automated bot registration.
+
 ### 4. API Design (RESTful)
 
 ### Auth

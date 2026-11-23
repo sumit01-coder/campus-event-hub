@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getEvents, getEventById, createEvent, updateEvent, deleteEvent, broadcastMessage, deleteBroadcast, toggleHideBroadcast, rateEvent, addCoordinator, removeCoordinator, extractProblemStatements, releaseResults, toggleLikeEvent, getEventAvailability, recommendEvents } = require('../controllers/eventController');
-const { protect, requireOrganizer } = require('../middleware/authMiddleware');
+const { protect, optionalAuth, requireOrganizer } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const upload = multer({ 
     dest: 'uploads/',
@@ -14,10 +14,10 @@ const upload = multer({
     }
 });
 
-router.get('/', getEvents);
-router.post('/recommend', recommendEvents);
-router.get('/:id', getEventById);
-router.get('/:id/availability', getEventAvailability);
+router.get('/', optionalAuth, getEvents);
+router.post('/recommend', protect, recommendEvents);
+router.get('/:id', optionalAuth, getEventById);
+router.get('/:id/availability', optionalAuth, getEventAvailability);
 router.post('/', protect, requireOrganizer, createEvent);
 router.post('/extract-problems', protect, requireOrganizer, upload.single('pdf'), extractProblemStatements);
 router.post('/:id/broadcast', protect, requireOrganizer, broadcastMessage);
